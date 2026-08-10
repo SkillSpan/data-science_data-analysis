@@ -4,10 +4,10 @@ from app.api.routes.skill_gap import router as skill_gap_router
 
 
 app = FastAPI(
-    title="SkillBridge Intelligence Service",
+    title="SkillSpan Intelligence Service",
     description=(
         "Data science, skill analysis, and career intelligence "
-        "services for the SkillBridge platform."
+        "services for the SkillSpan platform."
     ),
     version="0.1.0",
 )
@@ -22,15 +22,15 @@ def health_check() -> dict[str, str]:
 
     return {
         "status": "healthy",
-        "service": "skillbridge-intelligence-service",
+        "service": "skillspan-intelligence-service",
         "version": "0.1.0",
     }
 
 
 @app.get("/welcome", tags=["System"])
 def welcome() -> dict[str, str]:
-    """Return a welcome message for the SkillBridge service."""
+    """Return a welcome message for the SkillSpan service."""
 
     return {
-        "message": "Welcome to SkillBridge",
+        "message": "Welcome to SkillSpan",
     }
