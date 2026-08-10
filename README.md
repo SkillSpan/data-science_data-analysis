@@ -1,6 +1,6 @@
-# SkillBridge Data Science and Analytics
+# SkillSpan Data Science and Analytics
 
-Data science and analytics service for the SkillBridge platform.
+Data science and analytics service for the SkillSpan platform.
 
 ## Current Features
 

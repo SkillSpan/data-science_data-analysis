@@ -1,10 +1,10 @@
-# SkillBridge Skill Gap API Contract
+# SkillSpan Skill Gap API Contract
 
 ## 1. Overview
 
-The Skill Gap API is provided by the SkillBridge Intelligence Service.
+The Skill Gap API is provided by the SkillSpan Intelligence Service.
 
-It allows the main SkillBridge backend to send a user's current skill
+It allows the main SkillSpan backend to send a user's current skill
 levels and the levels required for a target career role.
 
 The service returns:
@@ -53,7 +53,7 @@ configuration value rather than hard-coding it.
 Example:
 
 ```env
-SKILLBRIDGE_INTELLIGENCE_URL=http://127.0.0.1:8001
+SKILLSPAN_INTELLIGENCE_URL=http://127.0.0.1:8001
 ```
 
 ## 4. Endpoint
@@ -409,7 +409,7 @@ that must be preserved.
 Start the service:
 
 ```bat
-cd /d H:\Projects\SkillBridge\data-science_data-analysis
+cd /d H:\Projects\SkillSpan\data-science_data-analysis
 .venv\Scripts\activate
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 ```
