@@ -1,4 +1,4 @@
-from typing import Literal
+﻿from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -8,10 +8,32 @@ from app.schemas.skill import SkillLevel
 class SkillGapRequest(BaseModel):
     """Represent a request to analyze a user's skill gaps."""
 
-    user_id: int = Field(
+    student_profile_id: int = Field(
         ...,
         gt=0,
         examples=[15],
+        description="Backend identifier of the learner's student profile.",
+    )
+
+    career_role_id: int = Field(
+        ...,
+        gt=0,
+        examples=[3],
+        description="Backend identifier of the target career role.",
+    )
+
+    career_role_version: int = Field(
+        ...,
+        gt=0,
+        examples=[1],
+        description="Version of the target career role used for this analysis.",
+    )
+
+    user_id: int = Field(
+        ...,
+        gt=0,
+        examples=[20],
+        description="Backend identifier of the authenticated platform user.",
     )
 
     target_role: str = Field(
@@ -29,6 +51,13 @@ class SkillGapRequest(BaseModel):
 
 class SkillGapResult(BaseModel):
     """Represent the gap analysis result for one skill."""
+
+    skill_id: int = Field(
+        ...,
+        gt=0,
+        examples=[11],
+        description="Stable backend identifier of the skill.",
+    )
 
     skill_name: str = Field(
         ...,
@@ -50,20 +79,18 @@ class SkillGapResult(BaseModel):
         le=5,
         examples=[4.0],
     )
-    
+
     importance_weight: float = Field(
         ...,
         gt=0,
-        le=100,
-        examples=[25.0],
+        le=1,
+        examples=[0.30],
     )
 
     is_critical: bool = Field(
         ...,
         examples=[True],
-        description=(
-            "Indicates whether the skill is essential for the target role."
-        ),
+        description="Indicates whether the skill is essential for the target role.",
     )
 
     gap: float = Field(
@@ -82,10 +109,28 @@ class SkillGapResult(BaseModel):
 class SkillGapResponse(BaseModel):
     """Represent the complete skill-gap analysis response."""
 
-    user_id: int = Field(
+    student_profile_id: int = Field(
         ...,
         gt=0,
         examples=[15],
+    )
+
+    career_role_id: int = Field(
+        ...,
+        gt=0,
+        examples=[3],
+    )
+
+    career_role_version: int = Field(
+        ...,
+        gt=0,
+        examples=[1],
+    )
+
+    user_id: int = Field(
+        ...,
+        gt=0,
+        examples=[20],
     )
 
     target_role: str = Field(
@@ -95,13 +140,21 @@ class SkillGapResponse(BaseModel):
         examples=["Data Analyst"],
     )
 
+    algorithm_version: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        examples=["skill-gap-v1"],
+        description="Version of the skill-gap algorithm used for the calculation.",
+    )
+
     base_readiness_score: float = Field(
-    ...,
-    ge=0,
-    le=100,
-    examples=[93.88],
-    description=(
-        "Weighted readiness score before applying critical-skill rules."
+        ...,
+        ge=0,
+        le=100,
+        examples=[93.88],
+        description=(
+            "Weighted readiness score before applying critical-skill rules."
         ),
     )
 
@@ -113,11 +166,11 @@ class SkillGapResponse(BaseModel):
     )
 
     critical_skill_cap_applied: bool = Field(
-    ...,
-    examples=[True],
-    description=(
-        "Indicates whether the final readiness score was reduced "
-        "because of a major gap in a critical skill."
+        ...,
+        examples=[True],
+        description=(
+            "Indicates whether the final readiness score was reduced "
+            "because of a major gap in a critical skill."
         ),
     )
 
@@ -136,6 +189,15 @@ class SkillGapResponse(BaseModel):
         ...,
         ge=0,
         examples=[1],
+    )
+
+    critical_skill_ids: list[int] = Field(
+        default_factory=list,
+        examples=[[7]],
+        description=(
+            "Backend identifiers of critical skills whose gaps reached "
+            "the configured major-gap threshold."
+        ),
     )
 
     critical_skill_names: list[str] = Field(

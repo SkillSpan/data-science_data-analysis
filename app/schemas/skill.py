@@ -1,8 +1,15 @@
-from pydantic import BaseModel, Field
+﻿from pydantic import BaseModel, Field
 
 
 class SkillLevel(BaseModel):
     """Represent a user's level in a specific skill."""
+
+    skill_id: int = Field(
+        ...,
+        gt=0,
+        examples=[11],
+        description="Stable backend identifier of the skill.",
+    )
 
     skill_name: str = Field(
         ...,
@@ -26,21 +33,21 @@ class SkillLevel(BaseModel):
     )
 
     importance_weight: float = Field(
-        default=1.0,
+        ...,
         gt=0,
-        le=100,
-        examples=[25.0],
+        le=1,
+        examples=[0.30],
         description=(
-            "Relative importance of the skill for the target career role. "
-            "The value does not need to make all weights total 100."
+            "Normalized importance of the skill for the target career role. "
+            "The value must be greater than 0 and less than or equal to 1."
         ),
     )
 
     is_critical: bool = Field(
-    default=False,
-    examples=[True],
-    description=(
-        "Indicates whether this skill is essential for the target role. "
-        "A major gap in a critical skill may limit the final readiness score."
+        ...,
+        examples=[True],
+        description=(
+            "Indicates whether this skill is essential for the target role. "
+            "A major gap in a critical skill may limit the final readiness score."
         ),
     )

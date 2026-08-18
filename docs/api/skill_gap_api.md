@@ -4,40 +4,52 @@
 
 The Skill Gap API is provided by the SkillSpan Intelligence Service.
 
-It allows the main SkillSpan backend to send a user's current skill
-levels and the levels required for a target career role.
+It allows the Laravel backend to submit the trusted learner profile, target
+career role, evaluated skill levels, career-role requirements, normalized
+importance weights, and critical-skill flags.
 
 The service returns:
 
-- The user's readiness score.
-- The gap for each skill.
-- The number of satisfied skills.
-- The number of skills that require improvement.
-- A status for every analyzed skill.
+- The weighted base readiness score.
+- The final readiness score after the current critical-skill rule.
+- The gap for every analyzed skill.
+- Stable backend identifiers for every analyzed skill.
+- Critical skills that triggered the readiness cap.
+- The algorithm version used for the calculation.
+
+This endpoint represents the current Skill Gap / Skill Match MVP calculation.
+It must not be interpreted as the complete multi-component SkillSpan readiness
+model.
+
+---
 
 ## 2. Service Ownership
 
 | Component | Responsibility |
 |---|---|
-| Laravel Backend | Stores users, career roles, skills, assessments, projects, and analysis results |
-| FastAPI Intelligence Service | Validates the input, calculates skill gaps, calculates readiness, and returns the analysis |
-| Frontend | Displays the analysis received through the Laravel backend |
+| Laravel Backend | Source of truth for users, student profiles, career roles, skills, evaluations, and persisted readiness results |
+| FastAPI Intelligence Service | Validates the supplied payload, calculates skill gaps and the current weighted readiness result, and returns a versioned result |
+| Frontend | Calls Laravel and displays results returned by Laravel |
 
-The frontend should not call the FastAPI service directly.
+The frontend must not call FastAPI directly.
 
-The expected communication flow is:
+Expected communication flow:
 
 ```text
 Frontend
-   ↓
+   ->
 Laravel Backend
-   ↓ HTTP/JSON
+   ->
 FastAPI Intelligence Service
-   ↓ JSON
+   ->
 Laravel Backend
-   ↓
-Frontend
+   ->
+Database / Frontend
 ```
+
+FastAPI does not connect directly to the Laravel database.
+
+---
 
 ## 3. Local Service URL
 
@@ -45,16 +57,10 @@ Frontend
 http://127.0.0.1:8001
 ```
 
-The production URL will be configured through the deployment environment.
+The production URL should be configured through the deployment environment
+rather than hard-coded.
 
-The Laravel application should store the FastAPI base URL in an environment
-configuration value rather than hard-coding it.
-
-Example:
-
-```env
-SKILLSPAN_INTELLIGENCE_URL=http://127.0.0.1:8001
-```
+---
 
 ## 4. Endpoint
 
@@ -63,7 +69,7 @@ SKILLSPAN_INTELLIGENCE_URL=http://127.0.0.1:8001
 | HTTP Method | `POST` |
 | Path | `/api/v1/skill-gap` |
 | Content Type | `application/json` |
-| Authentication | Not implemented in the current MVP service |
+| Authentication | Not implemented in the current FastAPI MVP service |
 | Success Status | `200 OK` |
 | Validation Error | `422 Unprocessable Entity` |
 
@@ -73,34 +79,44 @@ Full local URL:
 http://127.0.0.1:8001/api/v1/skill-gap
 ```
 
+Laravel may include an `X-Request-ID` header for correlation and logging.
+
+---
+
 ## 5. Request Body
 
 ### Example
 
 ```json
 {
-  "user_id": 1,
+  "student_profile_id": 15,
+  "career_role_id": 3,
+  "career_role_version": 1,
+  "user_id": 20,
   "target_role": "Data Analyst",
   "skills": [
     {
+      "skill_id": 7,
       "skill_name": "SQL",
-      "current_level": 1,
-      "required_level": 4,
-      "importance_weight": 10,
+      "current_level": 1.0,
+      "required_level": 4.0,
+      "importance_weight": 0.45,
       "is_critical": true
     },
     {
+      "skill_id": 11,
       "skill_name": "Python",
-      "current_level": 5,
-      "required_level": 5,
-      "importance_weight": 45,
-      "is_critical": false
+      "current_level": 4.0,
+      "required_level": 4.0,
+      "importance_weight": 0.30,
+      "is_critical": true
     },
     {
+      "skill_id": 19,
       "skill_name": "Power BI",
-      "current_level": 5,
-      "required_level": 5,
-      "importance_weight": 45,
+      "current_level": 4.0,
+      "required_level": 4.0,
+      "importance_weight": 0.25,
       "is_critical": false
     }
   ]
@@ -111,14 +127,56 @@ http://127.0.0.1:8001/api/v1/skill-gap
 
 | Field | Type | Required | Validation | Description |
 |---|---|---:|---|---|
-| `user_id` | Integer | Yes | Must be greater than `0` | User identifier from the Laravel database |
-| `target_role` | String | Yes | Length from `2` to `100` characters | Career role being analyzed |
-| `skills` | Array | Yes | Must contain at least one skill | Skills included in the analysis |
-| `skills[].skill_name` | String | Yes | Length from `2` to `100` characters | Skill name |
-| `skills[].current_level` | Number | Yes | From `0` to `5` | User's current skill level |
-| `skills[].required_level` | Number | Yes | From `0` to `5` | Level required by the target role |
-| `skills[].importance_weight` | Number | No | Greater than `0` and no more than `100`; defaults to `1.0` | Relative importance of the skill for the target career role |
-| `skills[].is_critical` | Boolean | No | Defaults to `false` | Indicates whether the skill is essential for the target career role |
+| `student_profile_id` | Integer | Yes | `> 0` | Student profile identifier from Laravel |
+| `career_role_id` | Integer | Yes | `> 0` | Target career role identifier |
+| `career_role_version` | Integer | Yes | `> 0` | Career role version used for the calculation |
+| `user_id` | Integer | Yes | `> 0` | Authenticated platform user identifier |
+| `target_role` | String | Yes | Length `2..100` | Human-readable career role title |
+| `skills` | Array | Yes | At least one item | Skills included in the calculation |
+| `skills[].skill_id` | Integer | Yes | `> 0` | Stable backend skill identifier |
+| `skills[].skill_name` | String | Yes | Length `2..100` | Human-readable skill name |
+| `skills[].current_level` | Number | Yes | `0..5` | Latest evaluated learner skill level |
+| `skills[].required_level` | Number | Yes | `0..5` | Level required by the career role |
+| `skills[].importance_weight` | Number | Yes | `0 < weight <= 1` | Normalized relative importance |
+| `skills[].is_critical` | Boolean | Yes | `true` or `false` | Whether the skill is critical for the role |
+
+### Importance Weight Contract
+
+The integration contract uses normalized weights:
+
+```text
+0 < importance_weight <= 1
+```
+
+Example:
+
+```text
+SQL       = 0.45
+Python    = 0.30
+Power BI  = 0.25
+```
+
+Career-role configuration should normally normalize the set of weights to
+approximately:
+
+```text
+1.00
+```
+
+FastAPI currently validates each individual weight but does not enforce that
+the entire skills array totals exactly `1.00`.
+
+Values such as:
+
+```text
+45
+30
+25
+```
+
+are invalid under the current API contract.
+
+---
 
 ## 6. Successful Response
 
@@ -132,13 +190,20 @@ http://127.0.0.1:8001/api/v1/skill-gap
 
 ```json
 {
-  "user_id": 1,
+  "student_profile_id": 15,
+  "career_role_id": 3,
+  "career_role_version": 1,
+  "user_id": 20,
   "target_role": "Data Analyst",
-  "base_readiness_score": 93.88,
+  "algorithm_version": "skill-gap-v1",
+  "base_readiness_score": 66.25,
   "readiness_score": 60.0,
   "critical_skill_cap_applied": true,
   "critical_skill_readiness_cap": 60.0,
   "critical_skill_gap_count": 1,
+  "critical_skill_ids": [
+    7
+  ],
   "critical_skill_names": [
     "SQL"
   ],
@@ -147,28 +212,31 @@ http://127.0.0.1:8001/api/v1/skill-gap
   "skills_with_gap": 1,
   "skill_results": [
     {
+      "skill_id": 7,
       "skill_name": "SQL",
       "current_level": 1.0,
       "required_level": 4.0,
-      "importance_weight": 10.0,
+      "importance_weight": 0.45,
       "is_critical": true,
       "gap": 3.0,
       "status": "gap"
     },
     {
+      "skill_id": 11,
       "skill_name": "Python",
-      "current_level": 5.0,
-      "required_level": 5.0,
-      "importance_weight": 45.0,
-      "is_critical": false,
+      "current_level": 4.0,
+      "required_level": 4.0,
+      "importance_weight": 0.30,
+      "is_critical": true,
       "gap": 0.0,
       "status": "met"
     },
     {
+      "skill_id": 19,
       "skill_name": "Power BI",
-      "current_level": 5.0,
-      "required_level": 5.0,
-      "importance_weight": 45.0,
+      "current_level": 4.0,
+      "required_level": 4.0,
+      "importance_weight": 0.25,
       "is_critical": false,
       "gap": 0.0,
       "status": "met"
@@ -181,25 +249,33 @@ http://127.0.0.1:8001/api/v1/skill-gap
 
 | Field | Type | Description |
 |---|---|---|
-| `user_id` | Integer | User identifier received in the request |
-| `target_role` | String | Career role received in the request |
-| `readiness_score` | Number | Overall readiness from `0` to `100` |
-| `total_skills` | Integer | Total number of analyzed skills |
-| `met_skills` | Integer | Number of skills meeting the required level |
-| `skills_with_gap` | Integer | Number of skills below the required level |
-| `skill_results` | Array | Detailed result for every skill |
+| `student_profile_id` | Integer | Student profile identifier received from Laravel |
+| `career_role_id` | Integer | Career role used for the calculation |
+| `career_role_version` | Integer | Career role version used |
+| `user_id` | Integer | Platform user identifier received from Laravel |
+| `target_role` | String | Career role title |
+| `algorithm_version` | String | Algorithm version used by FastAPI |
+| `base_readiness_score` | Number | Weighted score before critical-skill rules |
+| `readiness_score` | Number | Final score after the current critical-skill rule |
+| `critical_skill_cap_applied` | Boolean | Whether the final score was reduced by the cap |
+| `critical_skill_readiness_cap` | Number or Null | Active cap value when a major critical gap exists |
+| `critical_skill_gap_count` | Integer | Number of critical skills meeting the major-gap rule |
+| `critical_skill_ids` | Array of Integers | Backend IDs of critical skills triggering the rule |
+| `critical_skill_names` | Array of Strings | Names of critical skills triggering the rule |
+| `total_skills` | Integer | Number of analyzed skills |
+| `met_skills` | Integer | Skills meeting or exceeding the requirement |
+| `skills_with_gap` | Integer | Skills below the required level |
+| `skill_results` | Array | Detailed per-skill results |
+| `skill_results[].skill_id` | Integer | Backend skill identifier |
 | `skill_results[].skill_name` | String | Skill name |
-| `skill_results[].current_level` | Number | Current user level |
+| `skill_results[].current_level` | Number | Evaluated learner level |
 | `skill_results[].required_level` | Number | Required career-role level |
+| `skill_results[].importance_weight` | Number | Weight used in the calculation |
+| `skill_results[].is_critical` | Boolean | Critical-skill flag |
 | `skill_results[].gap` | Number | Missing skill level |
-| `skill_results[].status` | String | Either `met` or `gap` |
-| `skill_results[].importance_weight` | Number | Relative importance used in the readiness calculation |
-| `base_readiness_score` | Number | Weighted readiness score before critical-skill rules are applied |
-| `critical_skill_cap_applied` | Boolean | Indicates whether the final score was reduced by the critical-skill rule |
-| `critical_skill_readiness_cap` | Number or Null | Maximum allowed score when a major critical-skill gap exists |
-| `critical_skill_gap_count` | Integer | Number of critical skills with a major gap |
-| `critical_skill_names` | Array of Strings | Names of critical skills that triggered the rule |
-| `skill_results[].is_critical` | Boolean | Indicates whether the skill is essential for the target role |
+| `skill_results[].status` | String | `met` or `gap` |
+
+---
 
 ## 7. Current Calculation Logic
 
@@ -215,114 +291,117 @@ The achieved level is capped at the required level:
 achieved_level = min(current_level, required_level)
 ```
 
-The readiness score uses the importance assigned to each skill:
+Weighted achieved level:
 
 ```text
 weighted_achieved =
-achieved_level × importance_weight
+achieved_level * importance_weight
 ```
+
+Weighted required level:
 
 ```text
 weighted_required =
-required_level × importance_weight
+required_level * importance_weight
 ```
 
-The final readiness score is:
+Base readiness:
 
 ```text
-readiness_score =
-(sum of weighted achieved levels / sum of weighted required levels) × 100
+base_readiness_score =
+(
+  sum(weighted_achieved)
+  /
+  sum(weighted_required)
+) * 100
 ```
 
 The result is rounded to two decimal places.
 
-A skill receives:
+A skill has:
 
 ```text
 status = "met"
 ```
 
-when its gap equals zero. Otherwise:
+when its gap equals zero.
+
+Otherwise:
 
 ```text
 status = "gap"
 ```
 
-### Backward Compatibility
+---
 
-Both `importance_weight` and `is_critical` are optional request fields.
+## 8. Current Critical Skill Rule
 
-When omitted, the service uses:
-
-```text
-importance_weight = 1.0
-is_critical = false
-```
-
-Therefore, integrations created before weighted scoring remain compatible.
-
-The weights do not need to total `100`. The service normalizes their effect
-through the weighted readiness formula.
-
-### Critical Skills Rule
-
-Some skills may be essential for a target career role.
-
-A skill is marked as critical using:
-
-```text
-is_critical = true
-```
-
-The current major-gap threshold is:
+The current Skill Gap MVP service uses:
 
 ```text
 CRITICAL_SKILL_MAJOR_GAP_THRESHOLD = 2.0
-```
-
-When a critical skill has a gap greater than or equal to this threshold,
-the final readiness score cannot exceed:
-
-```text
 CRITICAL_SKILL_READINESS_CAP = 60.0
 ```
 
-The rule is applied as follows:
+A critical skill triggers the rule when:
 
 ```text
-final_readiness_score =
-min(base_readiness_score, critical_skill_readiness_cap)
+is_critical = true
+AND
+gap >= 2.0
+```
+
+When a major critical gap exists:
+
+```text
+readiness_score =
+min(base_readiness_score, 60.0)
 ```
 
 Example:
 
 ```text
-Base readiness score: 93.88
-Critical skill: SQL
-SQL gap: 3.0
-Final readiness score: 60.0
+SQL current level  = 1
+SQL required level = 4
+SQL gap            = 3
+SQL critical       = true
+
+base_readiness_score = 66.25
+readiness_score      = 60.0
 ```
 
-A critical skill with a gap below `2.0` does not trigger the readiness cap.
+The response retains both the base and final scores so the backend can persist
+and explain the result.
 
-The response distinguishes between:
+These constants describe the current `skill-gap-v1` implementation and may
+later move to approved algorithm or career-role configuration.
+
+---
+
+## 9. Algorithm Version
+
+Current version:
 
 ```text
-base_readiness_score
+skill-gap-v1
 ```
 
-and:
+FastAPI returns the algorithm version used for every successful calculation.
 
-```text
-readiness_score
+Example:
+
+```json
+{
+  "algorithm_version": "skill-gap-v1"
+}
 ```
 
-so API consumers can explain why the final result was reduced.
+Laravel should persist this returned version with the readiness result and
+snapshot.
 
-The values `2.0` and `60.0` are current MVP business-rule constants and may
-be moved to career-role configuration in a future version.
+---
 
-## 8. Validation Error
+## 10. Validation Errors
 
 Invalid request data returns:
 
@@ -330,91 +409,124 @@ Invalid request data returns:
 422 Unprocessable Entity
 ```
 
-Example invalid request:
+Examples include:
+
+- Missing required identity fields.
+- Missing `skill_id`.
+- Missing `importance_weight`.
+- Missing `is_critical`.
+- `current_level` outside `0..5`.
+- `required_level` outside `0..5`.
+- `importance_weight <= 0`.
+- `importance_weight > 1`.
+- Empty `skills` array.
+
+Example invalid weight:
 
 ```json
 {
-  "user_id": 1,
+  "student_profile_id": 15,
+  "career_role_id": 3,
+  "career_role_version": 1,
+  "user_id": 20,
   "target_role": "Data Analyst",
   "skills": [
     {
+      "skill_id": 11,
       "skill_name": "Python",
-      "current_level": 8,
-      "required_level": 4
+      "current_level": 3.0,
+      "required_level": 4.0,
+      "importance_weight": 25,
+      "is_critical": false
     }
   ]
 }
 ```
 
-The request is rejected because `current_level` must not exceed `5`.
+The exact Pydantic validation message may vary by installed version.
 
-Example response structure:
+Laravel should primarily rely on the HTTP status and structured `detail`
+response.
 
-```json
-{
-  "detail": [
-    {
-      "type": "less_than_equal",
-      "loc": [
-        "body",
-        "skills",
-        0,
-        "current_level"
-      ],
-      "msg": "Input should be less than or equal to 5",
-      "input": 8,
-      "ctx": {
-        "le": 5.0
-      }
-    }
-  ]
-}
-```
+---
 
-The exact validation message may vary by the installed Pydantic version.
-Laravel should primarily rely on the HTTP status and the `detail` field.
+## 11. Laravel Integration Responsibilities
 
-## 9. Additional Error Handling
+Laravel is responsible for:
 
-The Laravel backend should handle the following situations:
+1. Authenticating and authorizing the learner.
+2. Resolving the learner's `student_profile_id`.
+3. Resolving the requested or primary career role.
+4. Ensuring the career role is approved.
+5. Loading the required career-role skills.
+6. Selecting the latest trusted skill evaluation for every required skill.
+7. Rejecting incomplete assessment data instead of silently using zero.
+8. Sending normalized `importance_weight` values using the `0..1` contract.
+9. Calling FastAPI.
+10. Validating the FastAPI response.
+11. Persisting successful readiness results.
+12. Storing enough snapshot data for reproducibility.
+13. Avoiding persistence when FastAPI fails or returns an invalid response.
+
+---
+
+## 12. Additional Error Handling
 
 | Situation | Expected Handling |
 |---|---|
-| `200 OK` | Save or return the analysis result |
-| `422 Unprocessable Entity` | Log or display validation details |
-| Connection refused | Treat the intelligence service as temporarily unavailable |
-| Request timeout | Retry according to backend policy or return a temporary service error |
-| `500 Internal Server Error` | Log the failure and avoid storing incomplete analysis |
+| `200 OK` | Validate and persist or return the result |
+| `422 Unprocessable Entity` | Treat the FastAPI payload as invalid |
+| Connection failure | Treat the intelligence service as unavailable |
+| Timeout | Return a temporary service error according to backend policy |
+| FastAPI `5xx` | Log the failure and do not persist incomplete results |
+| Invalid JSON or contract | Reject the response and do not persist it |
 
-The Laravel backend should configure a reasonable connection and response
-timeout when calling the service.
+---
 
-## 10. Stateless Behavior
+## 13. Stateless FastAPI Behavior
 
-The endpoint is currently stateless.
+The endpoint is stateless.
 
 It:
 
-- Does not read from the Laravel database.
-- Does not save analysis results.
-- Does not update user information.
-- Does not authenticate users.
-- Calculates the result only from the submitted JSON.
+- Does not read from Clever Cloud or the Laravel database.
+- Does not save readiness results.
+- Does not update learner information.
+- Does not determine authoritative application records.
+- Calculates only from the validated JSON supplied by Laravel.
 
-Laravel remains the source of truth and is responsible for storing any result
-that must be preserved.
+Laravel remains the source of truth for application data and persistence.
 
-## 11. Local Testing
+---
 
-Start the service:
+## 14. Local Testing
 
-```bat
-cd /d H:\Projects\SkillSpan\data-science_data-analysis
-.venv\Scripts\activate
+Activate the project environment:
+
+```powershell
+cd H:\Projects\SkillSpan\data-science_data-analysis
+.\.venv\Scripts\Activate.ps1
+```
+
+Run tests:
+
+```powershell
+python -m pytest -q
+```
+
+Current expected result:
+
+```text
+6 passed
+```
+
+Start FastAPI:
+
+```powershell
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 ```
 
-Interactive API documentation:
+Swagger:
 
 ```text
 http://127.0.0.1:8001/docs
@@ -426,13 +538,32 @@ Health endpoint:
 http://127.0.0.1:8001/health
 ```
 
-## 12. Integration Readiness
+---
 
-The current API is ready for initial Laravel integration because it provides:
+## 15. Current Integration Status
 
-- A versioned endpoint.
-- Validated request schemas.
-- A documented response schema.
-- Predictable validation errors.
+The FastAPI side currently provides:
+
+- Versioned `/api/v1/skill-gap` endpoint.
+- Laravel-aligned identity fields.
+- Stable backend skill identifiers.
+- Required normalized importance weights.
+- Required critical-skill flags.
+- Weighted skill-gap calculation.
+- Current critical-skill rule.
+- Versioned algorithm response.
+- Validated request and response schemas.
 - Automated API tests.
-- Successful external HTTP testing.
+- Successful Laravel-shaped request simulation.
+
+Current communication contract:
+
+```text
+Laravel
+   ->
+FastAPI /api/v1/skill-gap
+   ->
+Validated skill-gap-v1 response
+   ->
+Laravel readiness persistence
+```
