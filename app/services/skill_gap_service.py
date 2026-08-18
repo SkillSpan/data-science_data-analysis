@@ -1,4 +1,4 @@
-﻿from app.schemas.skill_gap import SkillGapRequest
+from app.schemas.skill_gap import SkillGapRequest
 
 
 ALGORITHM_VERSION = "skill-gap-v1"
