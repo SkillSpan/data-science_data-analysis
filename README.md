@@ -1,4 +1,4 @@
-﻿# SkillSpan Data Science & Intelligence Service
+# SkillSpan Data Science & Intelligence Service
 
 FastAPI-based intelligence service for the SkillSpan platform.
 
@@ -213,6 +213,16 @@ Profile Completeness
 ```
 
 Those future components are not yet calculated by this service.
+
+### Profile Completeness Contract
+
+The proposed Profile Completeness metric, schema requirements, and Backend coordination contract are documented here:
+
+- [Profile Completeness Contract](docs/profile_completeness/profile_completeness_contract.md)
+- [Profile Context JSON Schema](docs/profile_completeness/profile_context_v1.schema.json)
+- [Backend Coordination](docs/profile_completeness/backend_coordination.md)
+
+These documents are design and integration-contract artifacts for a future Readiness component. They do not modify skill-gap-v1 or the current /api/v1/skill-gap contract.
 
 ---
 
