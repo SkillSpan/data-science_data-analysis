@@ -1,0 +1,381 @@
+{
+  "specification": {
+    "name": "SkillSpan Deterministic Skill Evaluation Test Vectors",
+    "status": "draft",
+    "purpose": "Provide fixed, reproducible input/output vectors for normalization, evidence weighting, skill-level aggregation, confidence calculation, and edge-case handling.",
+    "algorithm_versions": {
+      "skill_evaluation": "skill-evaluation-v1",
+      "evidence_weights": "evidence-weights-v1",
+      "normalization": "skill-normalization-v1",
+      "confidence": "skill-confidence-v1",
+      "recency": "evidence-recency-v1"
+    },
+    "default_evidence_weights": {
+      "self_assessment": 0.1,
+      "assessment_test": 0.3,
+      "project_performance": 0.35,
+      "expert_evaluation": 0.2,
+      "verified_certificate": 0.05
+    },
+    "default_recency_factors": {
+      "0_to_6_months": 1.0,
+      "gt_6_to_12_months": 0.9,
+      "gt_12_to_24_months": 0.75,
+      "gt_24_months": 0.6
+    },
+    "notes": [
+      "Missing optional evidence is excluded from the Skill Level denominator; it is not injected as zero.",
+      "Confidence denominator uses all configured evidence weights.",
+      "Pending-evidence verification multiplier is intentionally excluded because its approved numeric value is still TBD.",
+      "All expected numeric outputs are rounded to two decimal places."
+    ]
+  },
+  "vectors": [
+    {
+      "id": "SE-TV-001",
+      "title": "All five evidence sources available",
+      "category": "skill_level",
+      "input": {
+        "skill_id": 7,
+        "evidence": [
+          {
+            "source": "self_assessment",
+            "normalized_value": 3.0
+          },
+          {
+            "source": "assessment_test",
+            "normalized_value": 4.0
+          },
+          {
+            "source": "project_performance",
+            "normalized_value": 3.5
+          },
+          {
+            "source": "expert_evaluation",
+            "normalized_value": 4.5
+          },
+          {
+            "source": "verified_certificate",
+            "normalized_value": 4.0
+          }
+        ]
+      },
+      "expected": {
+        "skill_level": 3.83,
+        "calculation": "(3.0*0.10 + 4.0*0.30 + 3.5*0.35 + 4.5*0.20 + 4.0*0.05) / 1.00"
+      }
+    },
+    {
+      "id": "SE-TV-002",
+      "title": "Missing optional sources are re-normalized",
+      "category": "skill_level",
+      "input": {
+        "skill_id": 7,
+        "evidence": [
+          {
+            "source": "assessment_test",
+            "normalized_value": 4.0
+          },
+          {
+            "source": "project_performance",
+            "normalized_value": 3.0
+          }
+        ]
+      },
+      "expected": {
+        "skill_level": 3.46,
+        "available_weight_denominator": 0.65,
+        "calculation": "(4.0*0.30 + 3.0*0.35) / (0.30 + 0.35)"
+      }
+    },
+    {
+      "id": "SE-TV-003",
+      "title": "Self-assessment only produces provisional level",
+      "category": "skill_level_and_confidence",
+      "input": {
+        "skill_id": 7,
+        "evidence": [
+          {
+            "source": "self_assessment",
+            "normalized_value": 4.0,
+            "verification_factor": 1.0,
+            "recency_factor": 1.0
+          }
+        ]
+      },
+      "expected": {
+        "skill_level": 4.0,
+        "confidence_score": 10.0,
+        "confidence_band": "low",
+        "provisional": true
+      }
+    },
+    {
+      "id": "SE-TV-004",
+      "title": "Percentage assessment normalization",
+      "category": "normalization",
+      "input": {
+        "source": "assessment_test",
+        "raw_value": 80,
+        "raw_scale": "percentage_0_100",
+        "normalization_rule": "percent-to-skill-v1"
+      },
+      "expected": {
+        "normalized_value": 4.0,
+        "calculation": "80 / 20"
+      }
+    },
+    {
+      "id": "SE-TV-005",
+      "title": "Percentage assessment normalization at 75 percent",
+      "category": "normalization",
+      "input": {
+        "source": "assessment_test",
+        "raw_value": 75,
+        "raw_scale": "percentage_0_100",
+        "normalization_rule": "percent-to-skill-v1"
+      },
+      "expected": {
+        "normalized_value": 3.75,
+        "calculation": "75 / 20"
+      }
+    },
+    {
+      "id": "SE-TV-006",
+      "title": "Invalid percentage above source range",
+      "category": "validation",
+      "input": {
+        "source": "assessment_test",
+        "raw_value": 120,
+        "raw_scale": "percentage_0_100",
+        "normalization_rule": "percent-to-skill-v1"
+      },
+      "expected": {
+        "status": "validation_error",
+        "error_code": "OUT_OF_RANGE",
+        "normalized_value": null
+      }
+    },
+    {
+      "id": "SE-TV-007",
+      "title": "Current assessment and project confidence",
+      "category": "confidence",
+      "input": {
+        "evidence": [
+          {
+            "source": "assessment_test",
+            "verification_factor": 1.0,
+            "recency_factor": 1.0
+          },
+          {
+            "source": "project_performance",
+            "verification_factor": 1.0,
+            "recency_factor": 1.0
+          }
+        ]
+      },
+      "expected": {
+        "confidence_score": 65.0,
+        "confidence_band": "good",
+        "calculation": "100 * (0.30*1.0*1.0 + 0.35*1.0*1.0) / 1.00"
+      }
+    },
+    {
+      "id": "SE-TV-008",
+      "title": "Older project evidence reduces confidence only",
+      "category": "confidence",
+      "input": {
+        "evidence": [
+          {
+            "source": "assessment_test",
+            "verification_factor": 1.0,
+            "recency_factor": 1.0
+          },
+          {
+            "source": "project_performance",
+            "verification_factor": 1.0,
+            "recency_factor": 0.75
+          }
+        ]
+      },
+      "expected": {
+        "confidence_score": 56.25,
+        "confidence_band": "moderate",
+        "calculation": "100 * (0.30*1.0*1.0 + 0.35*1.0*0.75) / 1.00"
+      }
+    },
+    {
+      "id": "SE-TV-009",
+      "title": "All configured sources current and verified",
+      "category": "confidence",
+      "input": {
+        "evidence": [
+          {
+            "source": "self_assessment",
+            "verification_factor": 1.0,
+            "recency_factor": 1.0
+          },
+          {
+            "source": "assessment_test",
+            "verification_factor": 1.0,
+            "recency_factor": 1.0
+          },
+          {
+            "source": "project_performance",
+            "verification_factor": 1.0,
+            "recency_factor": 1.0
+          },
+          {
+            "source": "expert_evaluation",
+            "verification_factor": 1.0,
+            "recency_factor": 1.0
+          },
+          {
+            "source": "verified_certificate",
+            "verification_factor": 1.0,
+            "recency_factor": 1.0
+          }
+        ]
+      },
+      "expected": {
+        "confidence_score": 100.0,
+        "confidence_band": "high"
+      }
+    },
+    {
+      "id": "SE-TV-010",
+      "title": "No evidence",
+      "category": "edge_case",
+      "input": {
+        "skill_id": 7,
+        "evidence": []
+      },
+      "expected": {
+        "skill_level": null,
+        "confidence_score": 0.0,
+        "status": "no_evidence",
+        "error_or_flag_code": "NO_EVIDENCE"
+      }
+    },
+    {
+      "id": "SE-TV-011",
+      "title": "Missing value is not demonstrated zero",
+      "category": "edge_case",
+      "input": {
+        "source": "assessment_test",
+        "raw_value": null
+      },
+      "expected": {
+        "normalized_value": null,
+        "status": "missing",
+        "must_not_convert_to_zero": true
+      }
+    },
+    {
+      "id": "SE-TV-012",
+      "title": "Explicit zero remains valid zero",
+      "category": "normalization",
+      "input": {
+        "source": "assessment_test",
+        "raw_value": 0,
+        "raw_scale": "percentage_0_100",
+        "normalization_rule": "percent-to-skill-v1"
+      },
+      "expected": {
+        "normalized_value": 0.0,
+        "status": "valid"
+      }
+    },
+    {
+      "id": "SE-TV-013",
+      "title": "Rejected evidence does not positively contribute to confidence",
+      "category": "confidence",
+      "input": {
+        "evidence": [
+          {
+            "source": "assessment_test",
+            "verification_factor": 0.0,
+            "recency_factor": 1.0
+          }
+        ]
+      },
+      "expected": {
+        "confidence_score": 0.0,
+        "confidence_band": "low"
+      }
+    },
+    {
+      "id": "SE-TV-014",
+      "title": "Unknown canonical skill mapping",
+      "category": "mapping_validation",
+      "input": {
+        "assessment_item_id": 42,
+        "skill_id": 999999,
+        "contribution_weight": 1.0
+      },
+      "expected": {
+        "status": "mapping_error",
+        "error_code": "UNKNOWN_SKILL",
+        "contributes_to_skill_evaluation": false
+      }
+    },
+    {
+      "id": "SE-TV-015",
+      "title": "Duplicate evidence is not double-counted",
+      "category": "evidence_validation",
+      "input": {
+        "evidence": [
+          {
+            "source": "assessment_test",
+            "reference": "assessment-result-123",
+            "normalized_value": 4.0
+          },
+          {
+            "source": "assessment_test",
+            "reference": "assessment-result-123",
+            "normalized_value": 4.0
+          }
+        ]
+      },
+      "expected": {
+        "status": "duplicate_detected",
+        "error_or_flag_code": "DUPLICATE_EVIDENCE",
+        "distinct_analytical_contributions": 1
+      }
+    },
+    {
+      "id": "SE-TV-016",
+      "title": "Same input and same versions are reproducible",
+      "category": "reproducibility",
+      "input": {
+        "snapshot_id": "fixture-001",
+        "algorithm_version": "skill-evaluation-v1",
+        "evidence_weight_config_version": "evidence-weights-v1",
+        "normalization_config_version": "skill-normalization-v1",
+        "confidence_algorithm_version": "skill-confidence-v1"
+      },
+      "expected": {
+        "recalculation_requirement": "equivalent_output",
+        "historical_versions_preserved": true
+      }
+    }
+  ],
+  "excluded_until_approved": [
+    {
+      "topic": "pending_evidence",
+      "reason": "Exact pending verification multiplier is not yet approved."
+    },
+    {
+      "topic": "multiple_records_same_source",
+      "reason": "Same-source aggregation policy is not yet approved."
+    },
+    {
+      "topic": "binary_pass_fail_to_skill_level",
+      "reason": "No approved proficiency mapping exists."
+    },
+    {
+      "topic": "certificate_to_skill_level",
+      "reason": "No universal certificate proficiency normalization rule is approved."
+    }
+  ]
+}
