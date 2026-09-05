@@ -26,9 +26,16 @@
     "notes": [
       "Missing optional evidence is excluded from the Skill Level denominator; it is not injected as zero.",
       "Confidence denominator uses all configured evidence weights.",
-      "Pending-evidence verification multiplier is intentionally excluded because its approved numeric value is still TBD.",
+      "Pending-evidence verification multiplier is approved for v1 as 0.50 and remains configurable/versioned.",
       "All expected numeric outputs are rounded to two decimal places."
-    ]
+    ],
+    "approved_v1_decisions": {
+      "pending_verification_factor": 0.5,
+      "same_source_aggregation": "distinct references are aggregated within source using recency-aware aggregation; source weight applies once",
+      "evidence_date_required": true,
+      "pass_fail_skill_level": "out_of_mvp",
+      "certificate_skill_level": "requires approved proficiency mapping; otherwise no skill level"
+    }
   },
   "vectors": [
     {
@@ -358,24 +365,101 @@
         "recalculation_requirement": "equivalent_output",
         "historical_versions_preserved": true
       }
+    },
+    {
+      "id": "SE-TV-017",
+      "title": "Pending assessment evidence contributes partially to confidence only",
+      "category": "confidence",
+      "input": {
+        "source": "assessment_test",
+        "verification_factor": 0.5,
+        "recency_factor": 1.0
+      },
+      "expected": {
+        "confidence_score": 15.0,
+        "confidence_band": "low",
+        "contributes_to_skill_level": false,
+        "calculation": "100 * (0.30*0.50*1.00) / 1.00"
+      }
+    },
+    {
+      "id": "SE-TV-018",
+      "title": "Distinct same-source records aggregate before source weighting",
+      "category": "same_source_aggregation",
+      "input": {
+        "source": "project_performance",
+        "records": [
+          {
+            "reference": "project-A",
+            "normalized_value": 3.0,
+            "recency_factor": 1.0
+          },
+          {
+            "reference": "project-B",
+            "normalized_value": 4.5,
+            "recency_factor": 0.75
+          }
+        ]
+      },
+      "expected": {
+        "source_value": 3.64,
+        "source_weight_applied_times": 1,
+        "configured_source_weight": 0.35,
+        "calculation": "(3.0*1.0 + 4.5*0.75) / (1.0 + 0.75)"
+      }
+    },
+    {
+      "id": "SE-TV-019",
+      "title": "Missing evidence date is invalid",
+      "category": "validation",
+      "input": {
+        "source": "assessment_test",
+        "normalized_value": 4.0,
+        "evidence_date": null
+      },
+      "expected": {
+        "status": "validation_error",
+        "error_code": "MISSING_EVIDENCE_DATE"
+      }
+    },
+    {
+      "id": "SE-TV-020",
+      "title": "Certificate without approved proficiency mapping does not create skill level",
+      "category": "certificate_policy",
+      "input": {
+        "source": "verified_certificate",
+        "verified": true,
+        "proficiency_mapping": null
+      },
+      "expected": {
+        "normalized_value": null,
+        "contributes_to_skill_level": false,
+        "may_support_confidence": true
+      }
+    },
+    {
+      "id": "SE-TV-021",
+      "title": "Pass fail normalization is outside MVP",
+      "category": "normalization_policy",
+      "input": {
+        "raw_value": "pass",
+        "raw_scale": "pass_fail"
+      },
+      "expected": {
+        "status": "out_of_mvp",
+        "normalized_value": null
+      }
     }
   ],
-  "excluded_until_approved": [
-    {
-      "topic": "pending_evidence",
-      "reason": "Exact pending verification multiplier is not yet approved."
-    },
-    {
-      "topic": "multiple_records_same_source",
-      "reason": "Same-source aggregation policy is not yet approved."
-    },
+  "excluded_until_approved": [],
+  "deferred_or_constrained_policies": [
     {
       "topic": "binary_pass_fail_to_skill_level",
-      "reason": "No approved proficiency mapping exists."
+      "status": "out_of_mvp"
     },
     {
-      "topic": "certificate_to_skill_level",
-      "reason": "No universal certificate proficiency normalization rule is approved."
+      "topic": "certificate_without_proficiency_mapping",
+      "status": "supporting_evidence_only_no_skill_level"
     }
   ]
 }

@@ -253,52 +253,34 @@ skill_mapping_version
 
 ## 8. Binary / Pass-Fail Evidence
 
-No default mapping from:
+Approved v1 decision:
 
 ```text
-pass / fail
-true / false
-completed / not completed
+Pass/Fail -> Skill Level normalization is OUT OF MVP
 ```
 
-to the full `0–5` Skill scale is currently approved.
+No binary-to-`0-5` normalization rule will be implemented in the MVP. A `pass`, `fail`, `true`, `false`, `completed`, or similar binary outcome must not be converted into a Skill Level unless a future approved requirement defines a versioned mapping.
 
-A binary result may prove completion but does not necessarily demonstrate a precise proficiency level.
-
-Therefore:
-
-```text
-binary-to-skill mapping = TBD / domain approval required
-```
-
-Data Science must not silently use:
-
-```text
-pass = 5
-fail = 0
-```
-
-unless explicitly approved.
-
----
+If introduced later, it must be treated as a new requirement with a new normalization/configuration version rather than silently changing `skill-normalization-v1`.
 
 ## 9. Certificates
 
-A verified certificate is an **evidence source** with a configured weight, but the SRS does not define a universal certificate-grade-to-skill-level normalization rule.
+Approved v1 policy:
 
-Therefore:
-
-- certificate verification status and source weight are defined separately;
-- certificate proficiency value must come from an approved source-specific mapping if it is to affect raw Skill Level;
-- certificate presence alone must not automatically imply `skill_level = 5`.
-
-Status:
+A verified certificate is a supporting evidence source, but certificate presence alone does not imply a specific proficiency level.
 
 ```text
-certificate normalization rule = requires source/domain contract
+Certificate with approved source-specific proficiency mapping
+    -> normalize the mapped level to 0.00-5.00
+
+Certificate without approved proficiency mapping
+    -> do not create or invent a Skill Level
+    -> may support Confidence as verified evidence
 ```
 
----
+Therefore SkillSpan will not use a fixed default such as `certificate = 3.0`.
+
+The configured `verified_certificate` source weight remains separate from certificate-to-proficiency normalization. A certificate contributes to Skill Level only when it carries an approved normalized proficiency value; otherwise it is supporting verified evidence for Confidence.
 
 ## 10. Self-Assessment
 
@@ -648,6 +630,6 @@ Before runtime implementation, confirm:
 - [x] Versioning rules documented.
 - [ ] Backend raw score formats confirmed.
 - [ ] Rubric normalization contract confirmed.
-- [ ] Certificate normalization policy confirmed if applicable.
+- [x] Certificate normalization policy confirmed for v1: no fixed level; approved proficiency mapping only.
 - [ ] Machine-readable normalization config approved.
 - [ ] Runtime normalization tests implemented after approval.

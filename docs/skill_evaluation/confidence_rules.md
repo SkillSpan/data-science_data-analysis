@@ -87,7 +87,7 @@ verified evidence                 = 1.00
 missing evidence                  = 0.00
 rejected evidence                 = 0.00
 expired evidence                  = 0.00
-pending evidence                  = configurable partial value
+pending evidence                  = 0.50 (Approved v1 configurable default)
 ```
 
 ### CONF-VER-01 — Verified
@@ -100,15 +100,13 @@ These states contribute zero to the Confidence numerator.
 
 ### CONF-VER-03 — Pending
 
-The SRS does not define the exact numeric pending multiplier.
-
-Therefore:
+Approved v1 decision:
 
 ```text
-pending_verification_factor = TBD
+pending_verification_factor = 0.50
 ```
 
-It must not be invented in runtime code or deterministic expected values until approved.
+This factor is configurable and versioned under `evidence-verification-v1`. It contributes partially to Confidence only; pending evidence must not positively contribute to the calculated Skill Level until it becomes verified.
 
 ---
 
@@ -396,33 +394,27 @@ Confidence must reflect distinct valid evidence, not duplicated records.
 
 ## 11. Multiple Records from the Same Source
 
-The SRS does not yet define exactly how several valid records from one evidence source affect Confidence.
-
-Example:
+Approved v1 policy for multiple valid records from the same evidence source:
 
 ```text
-assessment_test #1
-assessment_test #2
-assessment_test #3
+Same skill + same source + same reference
+    -> keep only the latest/final valid record
+
+Distinct references from the same source
+    -> aggregate records within the source first
+    -> use recency-aware aggregation
+    -> apply the configured source weight once
 ```
 
-Open decision:
-
-- latest valid record only;
-- best/final record;
-- source-level aggregation;
-- capped per-source contribution;
-- another approved policy.
-
-Important constraint:
-
-A single source category must not exceed its configured intended weight merely because many records exist unless an approved configuration explicitly says so.
-
-Status:
+Recommended source-level aggregation:
 
 ```text
-same-source confidence aggregation = TBD
+source_value = SUM(value_i * recency_i) / SUM(recency_i)
 ```
+
+The source category must not gain additional configured weight simply because more evidence records exist. This prevents evidence-quantity inflation while still allowing distinct, recent evidence to influence the source-level value.
+
+For Confidence, the source contribution is likewise capped by its configured source weight. Duplicate records must not increase Confidence.
 
 ---
 
@@ -432,10 +424,10 @@ same-source confidence aggregation = TBD
 |---|---|
 | No evidence | Confidence = `0.00`. |
 | Only self-assessment | Low/provisional confidence. |
-| Verified evidence with missing date | Requires approved fallback; do not assume maximum recency silently. |
+| Verified evidence with missing date | Invalid input. Backend requires `skill_evidences.evidence_date` as NOT NULL, and FastAPI must keep `evidence_date` required. No fallback recency policy is used in v1. |
 | Rejected evidence | Zero confidence contribution. |
 | Expired evidence | Zero verification contribution under current SRS wording. |
-| Pending evidence | Use approved partial factor only; currently TBD. |
+| Pending evidence | Use verification factor `0.50` under `evidence-verification-v1`; it contributes to Confidence only and not to Skill Level until verified. |
 | Future evidence date | Reject/flag. |
 | Duplicate evidence | Do not double-count. |
 | Unknown source code | Reject/flag. |
@@ -518,7 +510,7 @@ Before runtime implementation, confirm:
 - whether expired is stored or derived;
 - evidence timestamp used for recency;
 - timezone/date semantics;
-- policy for missing evidence date;
+- `evidence_date` is required end-to-end; no missing-date fallback policy is used in v1;
 - same-source multiple-record policy;
 - whether source contribution is capped at source weight;
 - whether Backend already computes any verification/recency factors;
@@ -538,8 +530,8 @@ Before runtime implementation, confirm:
 - [x] Missing evidence behavior documented.
 - [x] Edge cases documented.
 - [x] Versioning requirements documented.
-- [ ] Pending verification multiplier confirmed.
-- [ ] Same-source aggregation policy confirmed.
-- [ ] Missing-date behavior confirmed.
+- [x] Pending verification multiplier confirmed as `0.50` for v1.
+- [x] Same-source aggregation policy confirmed for v1.
+- [x] Missing-date behavior confirmed: `evidence_date` is required; no fallback policy in v1.
 - [ ] Machine-readable config approved.
 - [ ] Runtime deterministic confidence tests implemented after approval.

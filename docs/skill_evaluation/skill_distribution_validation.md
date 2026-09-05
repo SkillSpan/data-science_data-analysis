@@ -411,7 +411,7 @@ if sample size is below an approved minimum:
 Exact:
 
 ```text
-minimum_sample_size = TBD
+minimum_sample_size = 30
 ```
 
 Product/Data Science must approve this after observing dataset size.
@@ -617,20 +617,21 @@ Distribution monitoring must not:
 
 ---
 
-## 18. Configuration Items Still Required
+## 18. Approved v1 Monitoring Configuration
 
-The following remain intentionally open:
+The following monitoring thresholds are approved for v1:
 
 ```text
-minimum_sample_size = TBD
-floor_effect_threshold = TBD
-ceiling_effect_threshold = TBD
-version_shift_thresholds = TBD
-source_disagreement_threshold = TBD
-mapping_failure_alert_threshold = TBD
+minimum_sample_size = 30
+floor_effect_threshold = 0.25
+ceiling_effect_threshold = 0.25
+version_shift_mean_threshold = 0.50
+source_disagreement_threshold = 1.50
+mapping_failure_alert_threshold = 0.05
+normalization_failure_alert_threshold = 0.01
 ```
 
-These should be calibrated using real SkillSpan data and approved as versioned monitoring configuration.
+These are the approved initial v1 monitoring thresholds. They may be recalibrated later using real SkillSpan data, but any change must be versioned and approved before use.
 
 ---
 
@@ -679,6 +680,6 @@ Before operational implementation, confirm:
 - [x] Initial deterministic validation cases defined.
 - [x] Proposed quality flags defined.
 - [ ] Real dataset/profile population confirmed.
-- [ ] Minimum sample size approved.
-- [ ] Alert thresholds calibrated.
+- [x] Minimum sample size approved for v1: `30`.
+- [x] Initial v1 monitoring thresholds approved; recalibration remains allowed through versioned configuration.
 - [ ] Automated reporting/tests implemented after approval.

@@ -576,7 +576,65 @@ They must not be interpreted as proof that matching Backend configuration record
 
 ---
 
-## 21. Open Decisions
+## 21. Backend Persistence and Evaluation Result Contract
+
+### Confirmed current Backend models
+
+The Backend team confirmed the following current persistence concepts:
+
+```text
+SkillEvidence
+- student_profile_id
+- skill_id
+- source
+- value
+- normalized_value
+- evidence_date
+- verification_status
+- recency_factor
+- reviewer_id
+
+SkillEvaluation
+- level
+- confidence
+- algorithm_version
+- aggregated per learner skill
+```
+
+`skill_evidences.evidence_date` is required by the Backend schema and must remain required in the FastAPI evaluation contract.
+
+### Approved v1 ownership model
+
+`skill_evaluations` is the authoritative calculated evaluation record/history. It is the audit-oriented representation of a computed skill result.
+
+`learner_skills` is the latest/current materialized projection used by read paths such as `/skills/matrix` and by the UI. It must not become an independently calculated second source of truth.
+
+FastAPI remains stateless and does not write directly to the Laravel database. Laravel is responsible for persistence after receiving an evaluation result from FastAPI.
+
+The intended persistence flow is:
+
+```text
+FastAPI calculates evaluation result
+        |
+        v
+Laravel receives result
+        |
+        +--> persist SkillEvaluation authoritative result/history
+        |
+        +--> update/upsert learner_skills current projection
+```
+
+Where supported by the final Backend schema, both persistence operations should occur within one Laravel transaction.
+
+### Reproducibility requirement
+
+The currently confirmed `SkillEvaluation.algorithm_version` field alone is not sufficient for full deterministic reproduction. The persisted evaluation contract must retain or resolve the configuration/version bundle used for taxonomy, mappings, normalization, evidence weights, verification, recency, and distribution-validation rules, together with the required evaluation input snapshot or equivalent audit reference.
+
+A direct field such as `learner_skills.latest_skill_evaluation_id` is recommended for traceability between the current projection and its authoritative evaluation record, but this remains a Backend schema recommendation until the full migrations are reviewed.
+
+---
+
+## 22. Open Decisions
 
 The following require alignment with Backend/Product/Domain:
 
@@ -596,7 +654,7 @@ The following require alignment with Backend/Product/Domain:
 
 ---
 
-## 22. Definition of Done
+## 23. Definition of Done
 
 - [x] Algorithm vs configuration version distinguished.
 - [x] Required Skill Evaluation version domains identified.
@@ -609,6 +667,7 @@ The following require alignment with Backend/Product/Domain:
 - [x] Rollback/deactivation behavior documented.
 - [x] Compatibility checks documented.
 - [x] Proposed v1 version baseline documented.
+- [x] Backend persistence ownership contract documented (`skill_evaluations` authoritative history; `learner_skills` current projection).
 - [ ] Backend persistence model confirmed.
 - [ ] Version lifecycle/status values confirmed.
 - [ ] Approval ownership confirmed.

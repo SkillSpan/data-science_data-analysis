@@ -137,20 +137,41 @@ Data Science should:
 | Supersession cycle | Reject taxonomy publication. |
 | Missing taxonomy version | Reject where versioning is required for reproducibility. |
 
-## 11. Backend / Domain Confirmations Required
+## 11. Backend Field Reconciliation — Confirmed Current Model
 
-Confirm before runtime integration:
-- actual stable skill ID field;
-- actual canonical-name field;
+Current Backend `Skill` model fields confirmed by the Backend team:
+
+```text
+Skill.id              -> skill_id
+Skill.name            -> canonical_name
+Skill.slug            -> slug
+Skill.category        -> category
+Skill.description     -> description
+Skill.status          -> lifecycle_status
+Skill.version         -> taxonomy_version
+Skill.parent_skill_id -> parent_skill_id
+```
+
+Data Science must use `Skill.id` as the canonical analytical identity. `Skill.name` and `Skill.slug` are descriptive/resolution fields and must not replace the stable ID in calculations or joins.
+
+`parent_skill_id` may represent taxonomy hierarchy and must not be interpreted as supersession unless the Backend/domain contract explicitly defines that semantic.
+
+### Remaining taxonomy integration gap
+
+The SRS requires aliases to resolve spelling/name variants to one canonical Skill, but the confirmed current `Skill` fields do not include an alias field or alias table. Therefore alias persistence/resolution must be confirmed before implementing automatic alias mapping in FastAPI. Until then, Data Science should expect canonical `skill_id` values from Backend rather than infer identity from free text.
+
+## 12. Backend / Domain Confirmations Required
+
+Remaining confirmations before runtime integration:
 - alias storage model;
-- category model;
-- lifecycle allowed values;
-- taxonomy/version storage approach;
-- superseded/retired skill representation;
+- category allowed values and domain semantics;
+- lifecycle/status allowed values;
+- exact semantics and governance of `Skill.version`;
+- superseded/retired skill representation, including whether `parent_skill_id` participates in that behavior;
 - whether `updated_at` is exposed;
 - whether Backend resolves aliases before sending Data Science payloads.
 
-## 12. Definition of Done
+## 13. Definition of Done
 
 - [x] Stable canonical identifier rule defined.
 - [x] Canonical name and alias semantics defined.
@@ -158,7 +179,7 @@ Confirm before runtime integration:
 - [x] Historical/supersession behavior defined.
 - [x] Validation and edge cases documented.
 - [x] Data Science consumption rules documented.
-- [ ] Backend field mapping confirmed.
+- [x] Current Backend `Skill` field mapping confirmed.
 - [ ] Domain lifecycle/category values confirmed.
 - [ ] Machine-readable schema approved.
 - [ ] Runtime contract tests implemented after approval.

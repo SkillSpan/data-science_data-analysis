@@ -248,7 +248,7 @@ The SRS defines:
 ```text
 verified evidence -> verification factor = 1.0
 rejected/missing/expired evidence -> verification factor = 0.0
-pending evidence -> configurable partial value
+pending evidence -> 0.50 (Approved v1 configurable default)
 ```
 
 However, the current SRS does **not** define the exact numeric multiplier for pending evidence.
@@ -258,10 +258,10 @@ Therefore this specification intentionally does **not** invent one.
 Required decision:
 
 ```text
-pending_verification_factor = TBD
+pending_verification_factor = 0.50
 ```
 
-This must be approved before deterministic confidence vectors involving pending evidence are finalized.
+Approved v1 decision: `0.50`. This value is configurable and versioned under `evidence-verification-v1`. It affects Confidence only; pending evidence must not positively contribute to the calculated Skill Level until verified.
 
 ---
 
@@ -285,31 +285,31 @@ Exact Backend source/status identifiers still require confirmation.
 
 ## 12. Multiple Evidence Records from the Same Source
 
-The default SRS weights are defined by **evidence source**, but the SRS does not fully specify how multiple valid records from the same source should be collapsed before cross-source weighting.
-
-Example:
+Approved v1 policy:
 
 ```text
-SQL:
-assessment_test #1 = 3.5
-assessment_test #2 = 4.2
-assessment_test #3 = 4.0
+Same skill + same source + same reference
+    -> keep only the latest/final valid record
+
+Distinct references from the same source
+    -> aggregate records within the source first
+    -> use recency-aware aggregation
+    -> apply the configured source weight once
 ```
 
-Possible policies include:
+Recommended source-level aggregation:
 
-- latest valid record;
-- approved aggregation across records;
-- highest-quality/final record;
-- time-aware aggregation.
+```text
+source_value = SUM(value_i * recency_i) / SUM(recency_i)
+```
 
-No policy should be silently assumed.
+This prevents evidence-quantity inflation. Multiple records from one source must not cause that source to receive its configured weight multiple times.
 
-**Status: Backend/Product/Data Science decision required.**
+For example, three distinct `project_performance` records for the same Skill are first aggregated into one source-level value; the `project_performance` weight of `0.35` is then applied once.
 
-Until approved, deterministic implementation must not invent an aggregation policy.
+Duplicate records referring to the same underlying Skill/source/reference are not aggregated as distinct evidence; only the latest/final valid record is retained for analytical contribution.
 
----
+This policy is part of the approved v1 Skill Evaluation baseline.
 
 ## 13. Evidence Weight Edge Cases
 
@@ -439,7 +439,7 @@ Before runtime implementation, confirm:
 - [x] Source weight vs Confidence distinction documented.
 - [x] Initial deterministic weight examples documented.
 - [ ] Backend evidence source/status codes confirmed.
-- [ ] Same-source aggregation rule confirmed.
-- [ ] Pending evidence multiplier confirmed.
+- [x] Same-source aggregation rule confirmed for v1.
+- [x] Pending evidence multiplier confirmed as `0.50` for v1.
 - [ ] Machine-readable configuration approved.
 - [ ] Runtime tests implemented after approval.
