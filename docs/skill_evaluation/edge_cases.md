@@ -128,7 +128,7 @@ Where an edge case changes, blocks, limits, or makes a result provisional, the r
 | `EC-EVD-08` | Evidence ownership mismatch | Reject. | `INVALID_EVIDENCE_OWNER` |
 | `EC-EVD-09` | Evidence references wrong Skill | Reject/flag mapping/data issue. | `EVIDENCE_SKILL_MISMATCH` |
 | `EC-EVD-10` | Evidence source unknown | Reject/flag. | `UNKNOWN_EVIDENCE_SOURCE` |
-| `EC-EVD-11` | Multiple valid records from same source | Apply only approved same-source aggregation policy; currently TBD. | `SAME_SOURCE_POLICY_REQUIRED` |
+| `EC-EVD-11` | Multiple valid records from same source | Aggregate distinct references within the source using recency-aware aggregation, then apply the source weight once. Same skill/source/reference keeps only the latest/final valid record. | approved v1 policy |
 | `EC-EVD-12` | All available source weights are zero | Reject configuration/evaluation. | `ZERO_TOTAL_WEIGHT` |
 
 ---
@@ -154,8 +154,8 @@ Where an edge case changes, blocks, limits, or makes a result provisional, the r
 | `EC-CONF-02` | Only self-assessment | Low/provisional Confidence. | `low` |
 | `EC-CONF-03` | Verified evidence | Verification multiplier = `1.00`. | normal contribution |
 | `EC-CONF-04` | Rejected/missing/expired evidence | Verification contribution = `0.00`. | zero contribution |
-| `EC-CONF-05` | Pending evidence | Use approved partial multiplier only; exact value currently TBD. | `PENDING_FACTOR_REQUIRED` if not configured |
-| `EC-CONF-06` | Evidence date missing | Apply only approved missing-date policy; do not assume freshest recency silently. | `MISSING_EVIDENCE_DATE` |
+| `EC-CONF-05` | Pending evidence | Use verification factor `0.50` under `evidence-verification-v1` for Confidence only; pending evidence does not positively contribute to Skill Level until verified. | approved v1 policy |
+| `EC-CONF-06` | Evidence date missing | Reject as invalid input. Backend requires `skill_evidences.evidence_date` as NOT NULL, and FastAPI must keep `evidence_date` required. No fallback recency policy is used in v1. | `MISSING_EVIDENCE_DATE` |
 | `EC-CONF-07` | Evidence timestamp in future | Reject/flag. | `FUTURE_EVIDENCE_DATE` |
 | `EC-CONF-08` | Unknown verification status | Reject/flag. | `UNKNOWN_VERIFICATION_STATUS` |
 | `EC-CONF-09` | Recency config missing | Do not invent factor. | `MISSING_RECENCY_CONFIG` |
@@ -163,7 +163,7 @@ Where an edge case changes, blocks, limits, or makes a result provisional, the r
 | `EC-CONF-11` | Confidence > `100` | Treat as implementation/configuration defect. | `CONFIDENCE_OUT_OF_RANGE` |
 | `EC-CONF-12` | Confidence < `0` | Treat as defect. | `CONFIDENCE_OUT_OF_RANGE` |
 | `EC-CONF-13` | Duplicate evidence | Must not increase Confidence twice. | `DUPLICATE_EVIDENCE` |
-| `EC-CONF-14` | Many same-source records | Must not exceed intended source contribution without approved policy. | `SAME_SOURCE_POLICY_REQUIRED` |
+| `EC-CONF-14` | Many same-source records | Aggregate distinct records within the source first and cap the source contribution at its configured source weight. | approved v1 policy |
 
 ---
 
@@ -229,21 +229,18 @@ Where an edge case changes, blocks, limits, or makes a result provisional, the r
 
 ---
 
-# 13. Open Decisions Blocking Full Determinism
+# 13. Resolved v1 Decisions and Deferred Policies
 
-The following are intentionally **not invented** in this document:
+The following policies are resolved for v1:
 
 ```text
-pending_verification_factor
-same_source_evidence_aggregation_policy
-missing_evidence_date_policy
-minimum_distribution_sample_size
-distribution_alert_thresholds
-binary/pass-fail normalization policy
-certificate proficiency normalization policy
+minimum_distribution_sample_size = 30
+distribution_alert_thresholds = approved under skill-distribution-validation-v1
+binary/pass-fail normalization policy = OUT OF MVP
+certificate proficiency normalization policy = requires approved source-specific proficiency mapping; no fixed default Skill Level
 ```
 
-These require Backend/Product/Domain/Data Science confirmation or real-data calibration.
+Distribution thresholds are monitoring configuration only and do not modify a learner Skill Level. Pass/Fail normalization remains intentionally deferred beyond MVP and will require a new normalization requirement/version if introduced later.
 
 ---
 
