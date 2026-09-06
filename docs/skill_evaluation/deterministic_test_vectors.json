@@ -15,7 +15,7 @@
       "assessment_test": 0.3,
       "project_performance": 0.35,
       "expert_evaluation": 0.2,
-      "verified_certificate": 0.05
+      "certificate": 0.05
     },
     "default_recency_factors": {
       "0_to_6_months": 1.0,
@@ -62,7 +62,7 @@
             "normalized_value": 4.5
           },
           {
-            "source": "verified_certificate",
+            "source": "certificate",
             "normalized_value": 4.0
           }
         ]
@@ -238,7 +238,7 @@
             "recency_factor": 1.0
           },
           {
-            "source": "verified_certificate",
+            "source": "certificate",
             "verification_factor": 1.0,
             "recency_factor": 1.0
           }
@@ -427,8 +427,8 @@
       "title": "Certificate without approved proficiency mapping does not create skill level",
       "category": "certificate_policy",
       "input": {
-        "source": "verified_certificate",
-        "verified": true,
+        "source": "certificate",
+        "verification_status": "verified",
         "proficiency_mapping": null
       },
       "expected": {

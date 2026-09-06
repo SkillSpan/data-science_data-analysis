@@ -93,7 +93,7 @@ self_assessment
 assessment_test
 project_performance
 expert_evaluation
-verified_certificate
+certificate
 ```
 
 Use for:

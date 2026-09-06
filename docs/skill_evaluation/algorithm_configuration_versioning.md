@@ -580,34 +580,59 @@ They must not be interpreted as proof that matching Backend configuration record
 
 ### Confirmed current Backend models
 
-The Backend team confirmed the following current persistence concepts:
+The following fields are confirmed from the current Laravel migrations:
 
 ```text
-SkillEvidence
+skill_evidences
+- id
 - student_profile_id
 - skill_id
 - source
 - value
 - normalized_value
-- evidence_date
+- reference
+- evidence_date (NOT NULL)
 - verification_status
-- recency_factor
 - reviewer_id
+- reviewer_notes
+- recency_factor
+- source_record_type
+- source_record_id
 
-SkillEvaluation
+skill_evaluations
+- id
+- student_profile_id
+- skill_id
 - level
 - confidence
 - algorithm_version
-- aggregated per learner skill
+- calculated_at
+- snapshot
+
+learner_skills
+- id
+- learner_id -> users.id
+- skill_id
+- level
+- confidence_score
+- source_type
+- algorithm_version
+- configuration_version
+- source_contributions
+- calculated_at
 ```
 
 `skill_evidences.evidence_date` is required by the Backend schema and must remain required in the FastAPI evaluation contract.
+
+`skill_evaluations` uses `student_profile_id`, while `learner_skills` uses `learner_id -> users.id`. The current `/api/v1/skills/matrix` read path is wired to `learner_skills`.
 
 ### Approved v1 ownership model
 
 `skill_evaluations` is the authoritative calculated evaluation record/history. It is the audit-oriented representation of a computed skill result.
 
 `learner_skills` is the latest/current materialized projection used by read paths such as `/skills/matrix` and by the UI. It must not become an independently calculated second source of truth.
+
+When projecting an evaluation into `learner_skills`, Laravel must resolve the learner identity through `skill_evaluations.student_profile_id -> student_profiles.user_id -> learner_skills.learner_id`.
 
 FastAPI remains stateless and does not write directly to the Laravel database. Laravel is responsible for persistence after receiving an evaluation result from FastAPI.
 
@@ -624,15 +649,21 @@ Laravel receives result
         +--> update/upsert learner_skills current projection
 ```
 
-Where supported by the final Backend schema, both persistence operations should occur within one Laravel transaction.
+Laravel should persist the authoritative `skill_evaluations` record and update/upsert the corresponding `learner_skills` projection within one transaction so the history and current matrix view cannot drift during a successful evaluation write.
 
 ### Reproducibility requirement
 
-The currently confirmed `SkillEvaluation.algorithm_version` field alone is not sufficient for full deterministic reproduction. The persisted evaluation contract must retain or resolve the configuration/version bundle used for taxonomy, mappings, normalization, evidence weights, verification, recency, and distribution-validation rules, together with the required evaluation input snapshot or equivalent audit reference.
+The current migrations confirm that `skill_evaluations` persists `algorithm_version` and a nullable `snapshot`, while `learner_skills` persists `algorithm_version`, `configuration_version`, and `source_contributions`. These fields improve traceability but do not by themselves prove that the full evaluation configuration bundle is reproducible.
 
-A direct field such as `learner_skills.latest_skill_evaluation_id` is recommended for traceability between the current projection and its authoritative evaluation record, but this remains a Backend schema recommendation until the full migrations are reviewed.
+For deterministic reproduction, the persisted evaluation contract must ensure that `skill_evaluations.snapshot` stores or resolves the configuration/version context used for taxonomy, mappings, normalization, evidence weights, verification, and recency rules, together with the relevant evaluation inputs. The exact contents and lifecycle of this snapshot remain a Backend/Data Science contract item.
+
+A direct link such as `learner_skills.latest_skill_evaluation_id` would improve traceability between the current projection and its authoritative evaluation record. This field is not present in the current migrations and therefore remains a Backend schema recommendation rather than an implemented contract.
 
 ---
+
+### Backend projection integrity gap
+
+The provided current migrations do not show a unique constraint on `learner_skills (learner_id, skill_id)`. Because `learner_skills` is defined as the latest/current projection, Backend must confirm whether uniqueness is enforced elsewhere. If it is not enforced, adding a unique constraint on `(learner_id, skill_id)` is recommended to prevent duplicate current rows and matrix drift.
 
 ## 22. Open Decisions
 
@@ -668,7 +699,8 @@ The following require alignment with Backend/Product/Domain:
 - [x] Compatibility checks documented.
 - [x] Proposed v1 version baseline documented.
 - [x] Backend persistence ownership contract documented (`skill_evaluations` authoritative history; `learner_skills` current projection).
-- [ ] Backend persistence model confirmed.
+- [x] Current Backend evaluation persistence schema confirmed for `skill_evidences`, `skill_evaluations`, and `learner_skills`.
+- [ ] Projection integrity, evaluation-to-projection traceability, and snapshot/configuration persistence details confirmed.
 - [ ] Version lifecycle/status values confirmed.
 - [ ] Approval ownership confirmed.
 - [ ] Runtime version resolution implemented after approval.

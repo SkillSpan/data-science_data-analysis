@@ -31,7 +31,7 @@ A Skill must be referenced analytically by its stable canonical identifier, not 
 | `taxonomy_version` | version identifier | Required | Taxonomy/configuration context used when the skill was resolved. |
 | `category` | string / canonical reference | Recommended | Approved taxonomy grouping. |
 | `description` | string or null | Optional | Domain description. |
-| `lifecycle_status` | controlled value | Recommended | Exact allowed values require Backend/domain confirmation. |
+| `lifecycle_status` | controlled value | Recommended | Confirmed Backend values: `active`, `retired`. |
 | `superseded_by_skill_id` | positive integer or null | Conditional | Traceability when replaced by another canonical skill. |
 | `updated_at` | ISO 8601 timestamp or null | Recommended | Audit/freshness metadata. |
 
@@ -65,7 +65,7 @@ Historical evidence/evaluations must retain the original canonical reference and
 
 ## 5. Lifecycle Semantics
 
-The SRS requires skill lifecycle/versioning but does not define the exact lifecycle enum. Therefore exact values remain a Backend/domain decision.
+The current Backend schema confirms the lifecycle enum as `active` and `retired`. Version and supersession semantics remain separate governance concerns.
 
 Analytical behavior must still ensure:
 - active skills may receive new mappings/evidence;
@@ -148,11 +148,13 @@ Skill.slug            -> slug
 Skill.category        -> category
 Skill.description     -> description
 Skill.status          -> lifecycle_status
-Skill.version         -> taxonomy_version
+Skill.version         -> backend skill version field (exact taxonomy semantics TBD)
 Skill.parent_skill_id -> parent_skill_id
 ```
 
 Data Science must use `Skill.id` as the canonical analytical identity. `Skill.name` and `Skill.slug` are descriptive/resolution fields and must not replace the stable ID in calculations or joins.
+
+`Skill.version` is confirmed as an unsigned integer field in the Backend schema, but it must not be assumed to represent the full `taxonomy_version` context required by Data Science until its governance semantics are confirmed.
 
 `parent_skill_id` may represent taxonomy hierarchy and must not be interpreted as supersession unless the Backend/domain contract explicitly defines that semantic.
 
@@ -165,7 +167,6 @@ The SRS requires aliases to resolve spelling/name variants to one canonical Skil
 Remaining confirmations before runtime integration:
 - alias storage model;
 - category allowed values and domain semantics;
-- lifecycle/status allowed values;
 - exact semantics and governance of `Skill.version`;
 - superseded/retired skill representation, including whether `parent_skill_id` participates in that behavior;
 - whether `updated_at` is exposed;
@@ -180,6 +181,7 @@ Remaining confirmations before runtime integration:
 - [x] Validation and edge cases documented.
 - [x] Data Science consumption rules documented.
 - [x] Current Backend `Skill` field mapping confirmed.
-- [ ] Domain lifecycle/category values confirmed.
+- [x] Backend lifecycle/status values confirmed (`active`, `retired`).
+- [ ] Domain category values/semantics confirmed.
 - [ ] Machine-readable schema approved.
 - [ ] Runtime contract tests implemented after approval.
