@@ -58,7 +58,7 @@ Important:
 
 ## 3. Default Evidence Source Weights
 
-Current SRS baseline:
+Current evaluation baseline aligned to Backend source identifiers:
 
 | Evidence Source | Weight |
 |---|---:|
@@ -66,7 +66,7 @@ Current SRS baseline:
 | `assessment_test` | 0.30 |
 | `project_performance` | 0.35 |
 | `expert_evaluation` | 0.20 |
-| `verified_certificate` | 0.05 |
+| `certificate` | 0.05 |
 
 Configured denominator:
 
@@ -112,7 +112,7 @@ This factor is configurable and versioned under `evidence-verification-v1`. It c
 
 ## 5. Default Recency Factors
 
-Current SRS baseline:
+Current evaluation baseline aligned to Backend source identifiers:
 
 | Evidence Age | Recency Factor |
 |---|---:|
@@ -405,6 +405,8 @@ Distinct references from the same source
     -> use recency-aware aggregation
     -> apply the configured source weight once
 ```
+
+Backend schema alignment note: the current migrations expose `reference`, `source_record_type`, and `source_record_id`. Pending Backend confirmation, the recommended evidence-identity precedence is `(source_record_type, source_record_id)` when both are present, with `reference` used as the fallback identity. This recommendation refines how "same reference" is detected; it does not change the approved v1 same-source aggregation policy.
 
 Recommended source-level aggregation:
 

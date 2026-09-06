@@ -302,24 +302,49 @@ Historical results must preserve the version used.
 
 ---
 
-## 13. Backend / Product / Domain Confirmations Required
+## 13. Confirmed Backend Baseline Assessment Contract
+
+The current Laravel migrations confirm the following persistence contract for `baseline_assessments`:
+
+```text
+id
+student_profile_id
+assessment_type
+assessment_version
+status
+progress
+responses
+result
+normalized_skills
+completed_at
+```
+
+The table enforces one record per `(student_profile_id, assessment_type, assessment_version)`.
+
+`result` is intended to persist the FastAPI response, while `normalized_skills` is intended to persist the mapped `skills[]` output associated with the assessment result.
+
+This confirms the Backend persistence location for baseline assessment results, but it does not define the assessment-item-to-Skill mapping storage or ownership. No mapping table/model should be inferred until Backend confirms the corresponding schema and runtime payload contract.
+
+---
+
+## 14. Backend / Product / Domain Confirmations Required
 
 Before runtime implementation, confirm:
 
 - whether current assessments expose item-level results or only overall scores;
-- actual Backend identifiers for assessment and assessment items;
+- `baseline_assessments.id` is confirmed as the persisted baseline assessment record identifier; assessment-item identifiers still require confirmation;
 - existing assessment-to-Skill mapping tables/models, if any;
 - who approves mappings;
 - whether one item may map to multiple Skills;
 - how contribution weights are stored;
 - exact mapping lifecycle/status values;
-- whether mapping version already exists in Backend;
+- `baseline_assessments.assessment_version` is confirmed, but whether a separate assessment-to-Skill mapping version exists in Backend still requires confirmation;
 - how normalization rule/version is referenced;
 - whether Backend sends canonical mapped evidence to Data Science or sends raw assessment results plus mapping metadata.
 
 ---
 
-## 14. Definition of Done
+## 15. Definition of Done
 
 - [x] Canonical mapping direction defined.
 - [x] Item-level and assessment-level mapping semantics defined.
@@ -328,7 +353,8 @@ Before runtime implementation, confirm:
 - [x] Versioning requirements defined.
 - [x] Edge cases documented.
 - [x] Data-quality validation metrics identified.
-- [ ] Backend assessment schema confirmed.
+- [x] Backend baseline assessment persistence schema confirmed.
+- [ ] Assessment item/mapping schema confirmed.
 - [ ] Mapping ownership/approval confirmed.
 - [ ] Runtime payload contract approved.
 - [ ] Deterministic mapping tests implemented after approval.

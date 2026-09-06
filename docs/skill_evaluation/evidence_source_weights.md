@@ -26,7 +26,7 @@ This document does **not** modify `skill-gap-v1`.
 
 ## 2. SRS-Approved Default Evidence Weights
 
-The current SkillSpan SRS defines the following baseline:
+The current evaluation baseline, aligned to Backend source identifiers, is:
 
 | Evidence Source | Default Weight | Rationale |
 |---|---:|---|
@@ -34,7 +34,7 @@ The current SkillSpan SRS defines the following baseline:
 | `assessment_test` | 0.30 | Provides standardized, verified evidence. |
 | `project_performance` | 0.35 | Measures practical application and is the strongest default signal. |
 | `expert_evaluation` | 0.20 | Adds professional judgment based on a rubric. |
-| `verified_certificate` | 0.05 | Supports evidence but does not alone prove applied competence. |
+| `certificate` | 0.05 | Supports evidence but does not alone prove applied competence. |
 
 Configured total:
 
@@ -91,7 +91,7 @@ Unavailable:
 ```text
 self_assessment
 expert_evaluation
-verified_certificate
+certificate
 ```
 
 Calculation:
@@ -160,7 +160,7 @@ Recommended versioned configuration representation:
     "assessment_test": 0.30,
     "project_performance": 0.35,
     "expert_evaluation": 0.20,
-    "verified_certificate": 0.05
+    "certificate": 0.05
   }
 }
 ```
@@ -274,12 +274,12 @@ self_assessment
 assessment_test
 project_performance
 expert_evaluation
-verified_certificate
+certificate
 ```
 
 Human-readable labels may change without changing these analytical source identities.
 
-Exact Backend source/status identifiers still require confirmation.
+Current Backend source identifiers are confirmed as `self_assessment`, `assessment_test`, `project_performance`, `expert_evaluation`, and `certificate`. Verification status identifiers are confirmed as `pending`, `verified`, `rejected`, and `expired`.
 
 ---
 
@@ -296,6 +296,8 @@ Distinct references from the same source
     -> use recency-aware aggregation
     -> apply the configured source weight once
 ```
+
+Backend schema alignment note: the current migrations expose `reference`, `source_record_type`, and `source_record_id`. Pending Backend confirmation, the recommended evidence-identity precedence is `(source_record_type, source_record_id)` when both are present, with `reference` used as the fallback identity. This recommendation refines how "same reference" is detected; it does not change the approved v1 same-source aggregation policy.
 
 Recommended source-level aggregation:
 
@@ -339,7 +341,7 @@ self_assessment        = 3.0
 assessment_test        = 4.0
 project_performance    = 3.5
 expert_evaluation      = 4.5
-verified_certificate   = 4.0
+certificate            = 4.0
 ```
 
 Calculation:
@@ -387,7 +389,7 @@ Expected:
 Missing certificate is **not** treated as:
 
 ```text
-verified_certificate = 0.0
+certificate = 0.0
 ```
 
 Instead, its `0.05` is removed from the available-evidence denominator.

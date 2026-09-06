@@ -280,7 +280,7 @@ Certificate without approved proficiency mapping
 
 Therefore SkillSpan will not use a fixed default such as `certificate = 3.0`.
 
-The configured `verified_certificate` source weight remains separate from certificate-to-proficiency normalization. A certificate contributes to Skill Level only when it carries an approved normalized proficiency value; otherwise it is supporting verified evidence for Confidence.
+The configured `certificate` source weight remains separate from certificate-to-proficiency normalization. A certificate contributes to Skill Level only when it carries an approved normalized proficiency value; otherwise it is supporting verified evidence for Confidence.
 
 ## 10. Self-Assessment
 
