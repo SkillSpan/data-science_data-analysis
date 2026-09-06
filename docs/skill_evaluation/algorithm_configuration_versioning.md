@@ -529,26 +529,24 @@ No component should silently substitute another version.
 
 ---
 
-## 19. Proposed Version Registry Record
+## 19. Backend Algorithm Configuration Registry
 
-Conceptual record:
+The current Laravel migrations confirm a versioned `algorithm_configurations` registry with the following fields:
 
-```json
-{
-  "version_id": "evidence-weights-v1",
-  "domain": "evidence_weights",
-  "description": "Initial SRS baseline evidence-source weights.",
-  "status": "active",
-  "effective_from": "2026-09-02T00:00:00Z",
-  "effective_to": null,
-  "owner": "Data Science / Domain Governance",
-  "approved_by": null,
-  "code_reference": null,
-  "supersedes": null
-}
+```text
+id
+name
+version
+status
+config
+created_by
+activated_at
+timestamps
 ```
 
-Exact ownership fields and approval workflow require Product/Backend confirmation.
+For Skill Evaluation, this table is the Backend persistence source for versioned algorithm configuration parameters such as `pending_verification_factor = 0.50`.
+
+The registry record identifies the named/versioned configuration, while the `config` payload contains the parameters belonging to that configuration version. Exact status values, activation workflow, approval ownership, and configuration selection rules still require Backend/Product governance confirmation where not already defined.
 
 ---
 
@@ -570,9 +568,9 @@ recency_config_version              = evidence-recency-v1
 distribution_validation_version     = skill-distribution-validation-v1
 ```
 
-These identifiers are proposed Data Science specification identifiers.
+These identifiers remain proposed Data Science specification identifiers unless a matching configuration is explicitly created and versioned in `algorithm_configurations`.
 
-They must not be interpreted as proof that matching Backend configuration records already exist.
+The confirmed existence of `algorithm_configurations` establishes the Backend registry mechanism, but it must not be interpreted as proof that every proposed identifier above already has a corresponding active Backend configuration record.
 
 ---
 
@@ -620,9 +618,26 @@ learner_skills
 - configuration_version
 - source_contributions
 - calculated_at
+
+algorithm_configurations
+- id
+- name
+- version
+- status
+- config
+- created_by
+- activated_at
+- timestamps
 ```
 
 `skill_evidences.evidence_date` is required by the Backend schema and must remain required in the FastAPI evaluation contract.
+
+Backend has also approved two persistence changes that are not yet present in the current migrations:
+
+- add `configuration_id` to `skill_evaluations` as an explicit reference to the exact `algorithm_configurations` record used for the calculation;
+- add `UNIQUE (learner_id, skill_id)` to `learner_skills` so the table enforces exactly one current projection row per learner and skill.
+
+These items are approved contract changes pending Backend migration implementation.
 
 `skill_evaluations` uses `student_profile_id`, while `learner_skills` uses `learner_id -> users.id`. The current `/api/v1/skills/matrix` read path is wired to `learner_skills`.
 
@@ -653,30 +668,54 @@ Laravel should persist the authoritative `skill_evaluations` record and update/u
 
 ### Reproducibility requirement
 
-The current migrations confirm that `skill_evaluations` persists `algorithm_version` and a nullable `snapshot`, while `learner_skills` persists `algorithm_version`, `configuration_version`, and `source_contributions`. These fields improve traceability but do not by themselves prove that the full evaluation configuration bundle is reproducible.
+The current migrations persist `skill_evaluations.algorithm_version` and `skill_evaluations.snapshot`, while `learner_skills` persists `algorithm_version`, `configuration_version`, and `source_contributions`.
 
-For deterministic reproduction, the persisted evaluation contract must ensure that `skill_evaluations.snapshot` stores or resolves the configuration/version context used for taxonomy, mappings, normalization, evidence weights, verification, and recency rules, together with the relevant evaluation inputs. The exact contents and lifecycle of this snapshot remain a Backend/Data Science contract item.
+Backend has approved the following v1 historical reproducibility contract:
 
-A direct link such as `learner_skills.latest_skill_evaluation_id` would improve traceability between the current projection and its authoritative evaluation record. This field is not present in the current migrations and therefore remains a Backend schema recommendation rather than an implemented contract.
+- `algorithm_version` identifies the version of the calculation algorithm itself;
+- `configuration_id` will be added to `skill_evaluations` as an explicit reference to the exact `algorithm_configurations` record used for the calculation;
+- `snapshot` remains an immutable historical snapshot of the configuration metadata, parameters, relevant analytical inputs, and values actually used at calculation time.
+
+`configuration_id` is an approved contract change pending Backend migration implementation. The snapshot must remain historical evidence and must not be rewritten when a configuration is later edited, superseded, deactivated, or replaced.
+
+A representative snapshot shape is:
+
+```json
+{
+  "algorithm": {
+    "version": "skill-evaluation-v1"
+  },
+  "configuration": {
+    "name": "skill_evaluation",
+    "version": 3
+  },
+  "parameters": {
+    "pending_verification_factor": 0.50
+  }
+}
+```
+
+Together, `algorithm_version`, `configuration_id`, and the immutable `snapshot` make `skill_evaluations` the trusted historical record for previous calculations.
+
+A direct link such as `learner_skills.latest_skill_evaluation_id` would further improve row-level traceability between the current projection and its authoritative evaluation record. This field is not present in the current migrations and remains a Backend schema recommendation rather than an implemented contract.
 
 ---
 
-### Backend projection integrity gap
+### Backend projection integrity contract
 
-The provided current migrations do not show a unique constraint on `learner_skills (learner_id, skill_id)`. Because `learner_skills` is defined as the latest/current projection, Backend must confirm whether uniqueness is enforced elsewhere. If it is not enforced, adding a unique constraint on `(learner_id, skill_id)` is recommended to prevent duplicate current rows and matrix drift.
+The current migrations do not yet contain a unique constraint on `learner_skills (learner_id, skill_id)`. Backend has approved adding `UNIQUE (learner_id, skill_id)` because `learner_skills` represents the latest/current projection and must contain at most one current row per learner and skill.
+
+This uniqueness rule is therefore an approved persistence contract change pending Backend migration implementation.
 
 ## 22. Open Decisions
 
 The following require alignment with Backend/Product/Domain:
 
 ```text
-- persisted version registry model/table
 - exact version field names
 - version lifecycle enum
 - approval workflow and approver roles
-- configuration-bundle support
 - effective-date selection logic
-- how historical input snapshots are persisted
 - exact code-reference strategy
 - rollback/recalculation workflow
 - compatibility-rule storage
@@ -699,8 +738,10 @@ The following require alignment with Backend/Product/Domain:
 - [x] Compatibility checks documented.
 - [x] Proposed v1 version baseline documented.
 - [x] Backend persistence ownership contract documented (`skill_evaluations` authoritative history; `learner_skills` current projection).
-- [x] Current Backend evaluation persistence schema confirmed for `skill_evidences`, `skill_evaluations`, and `learner_skills`.
-- [ ] Projection integrity, evaluation-to-projection traceability, and snapshot/configuration persistence details confirmed.
+- [x] Current Backend evaluation persistence schema confirmed for `skill_evidences`, `skill_evaluations`, `learner_skills`, and `algorithm_configurations`.
+- [x] Projection integrity contract confirmed; `UNIQUE (learner_id, skill_id)` is approved pending Backend migration implementation.
+- [x] Historical snapshot/configuration persistence contract confirmed; `configuration_id` is approved pending Backend migration implementation.
+- [ ] Direct evaluation-to-projection row-level traceability remains unconfirmed; `learner_skills.latest_skill_evaluation_id` is still a recommendation.
 - [ ] Version lifecycle/status values confirmed.
 - [ ] Approval ownership confirmed.
 - [ ] Runtime version resolution implemented after approval.

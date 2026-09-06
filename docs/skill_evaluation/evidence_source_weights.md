@@ -297,7 +297,7 @@ Distinct references from the same source
     -> apply the configured source weight once
 ```
 
-Backend schema alignment note: the current migrations expose `reference`, `source_record_type`, and `source_record_id`. Pending Backend confirmation, the recommended evidence-identity precedence is `(source_record_type, source_record_id)` when both are present, with `reference` used as the fallback identity. This recommendation refines how "same reference" is detected; it does not change the approved v1 same-source aggregation policy.
+Backend persistence contract: the current migrations expose `reference`, `source_record_type`, and `source_record_id`. Backend has confirmed `(source_record_type, source_record_id)` as the canonical source identity when both values are present. When the original source identity is unavailable, `reference` is the fallback identity used by application logic to detect the same evidence and prevent duplication. The current schema does not enforce DB-level uniqueness for the source identity; any such constraint requires a separate migration after NULL and source-record behavior are defined. This identity rule refines how "same reference" is detected and does not change the approved v1 same-source aggregation policy.
 
 Recommended source-level aggregation:
 
