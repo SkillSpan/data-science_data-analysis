@@ -110,8 +110,8 @@ def test_baseline_endpoint_returns_service_unavailable_without_backend_mapping()
     assert response.status_code == 503
     assert response.json() == {
         "detail": (
-            "Baseline evaluation requires Backend-owned assessment item "
-            "definitions and item-to-skill mapping."
+            "Baseline mapping integration requires BACKEND_BASE_URL and "
+            "BASELINE_INTERNAL_SECRET."
         )
     }
 
@@ -123,3 +123,70 @@ def test_baseline_endpoint_rejects_invalid_request_contract() -> None:
     response = client.post("/api/v1/baseline", json=payload)
 
     assert response.status_code == 422
+
+
+def test_baseline_endpoint_scores_with_backend_mapping_and_propagates_request_id(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.schemas.baseline_mapping import BaselineMappingResponse
+
+    captured: dict[str, object] = {}
+
+    mapping = BaselineMappingResponse.model_validate(
+        {
+            "success": True,
+            "assessment_version": "v1.0",
+            "weight_scale": "0..1",
+            "items": [
+                {
+                    "item_id": "sql-001",
+                    "item_type": "single_choice",
+                    "options": ["A", "B", "C", "D"],
+                    "correct_answer": "B",
+                    "scoring_rule": None,
+                    "skill_id": 5,
+                    "skill_slug": "sql",
+                    "weight": 1.0,
+                }
+            ],
+        }
+    )
+
+    def fake_fetch_baseline_mapping(
+        assessment_version: str,
+        request_id: str | None = None,
+    ) -> BaselineMappingResponse:
+        captured["assessment_version"] = assessment_version
+        captured["request_id"] = request_id
+        return mapping
+
+    monkeypatch.setattr(
+        "app.api.routes.baseline.fetch_baseline_mapping",
+        fake_fetch_baseline_mapping,
+    )
+
+    response = client.post(
+        "/api/v1/baseline",
+        json=_valid_request_payload(),
+        headers={"X-Request-ID": "backend-baseline-123"},
+    )
+
+    assert response.status_code == 200
+    assert response.headers["X-Request-ID"] == "backend-baseline-123"
+    assert captured == {
+        "assessment_version": "v1.0",
+        "request_id": "backend-baseline-123",
+    }
+    assert response.json() == {
+        "algorithm_version": "baseline-v1.0",
+        "student_profile_id": 1,
+        "overall_score": 100.0,
+        "skills": [
+            {
+                "skill_id": 5,
+                "slug": "sql",
+                "level": 5.0,
+                "confidence": 1.0,
+            }
+        ],
+    }
