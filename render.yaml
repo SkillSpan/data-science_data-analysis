@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: skillspan-intelligence
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: BACKEND_BASE_URL
+        value: https://back-end-zdip.onrender.com
+      - key: BASELINE_INTERNAL_SECRET
+        sync: false
+      - key: BASELINE_MAPPING_TIMEOUT_SECONDS
+        value: "8.0"
