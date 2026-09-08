@@ -89,7 +89,7 @@ def test_fetch_baseline_mapping_sends_contract_headers_and_query(
         "X-Internal-Secret": "test-secret",
         "X-Request-ID": "req-123",
     }
-    assert captured["timeout"] == 5.0
+    assert captured["timeout"] == 8.0
 
 
 def test_fetch_baseline_mapping_maps_request_errors_to_unavailable(
@@ -161,4 +161,41 @@ def test_fetch_baseline_mapping_rejects_version_mismatch(
     monkeypatch.setattr(httpx, "get", fake_get)
 
     with pytest.raises(BaselineMappingInvalidResponseError):
+        fetch_baseline_mapping("v1.0")
+
+
+def test_fetch_baseline_mapping_uses_configured_timeout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _configure_backend(monkeypatch)
+    monkeypatch.setenv("BASELINE_MAPPING_TIMEOUT_SECONDS", "12.5")
+    captured: dict[str, object] = {}
+
+    def fake_get(url: str, **kwargs: object) -> httpx.Response:
+        captured.update(kwargs)
+        return httpx.Response(
+            200,
+            json=_valid_mapping_payload(),
+            request=httpx.Request("GET", url),
+        )
+
+    monkeypatch.setattr(httpx, "get", fake_get)
+
+    fetch_baseline_mapping("v1.0")
+
+    assert captured["timeout"] == 12.5
+
+
+@pytest.mark.parametrize("value", ["invalid", "0", "-1", "nan", "inf"])
+def test_fetch_baseline_mapping_rejects_invalid_timeout_configuration(
+    monkeypatch: pytest.MonkeyPatch,
+    value: str,
+) -> None:
+    _configure_backend(monkeypatch)
+    monkeypatch.setenv("BASELINE_MAPPING_TIMEOUT_SECONDS", value)
+
+    with pytest.raises(
+        BaselineMappingConfigurationError,
+        match="BASELINE_MAPPING_TIMEOUT_SECONDS",
+    ):
         fetch_baseline_mapping("v1.0")

@@ -1,3 +1,4 @@
+import math
 import os
 
 import httpx
@@ -7,6 +8,7 @@ from app.schemas.baseline_mapping import BaselineMappingResponse
 
 
 BASELINE_ITEMS_PATH = "/api/v1/internal/baseline-items"
+DEFAULT_BASELINE_MAPPING_TIMEOUT_SECONDS = 8.0
 
 
 class BaselineMappingConfigurationError(RuntimeError):
@@ -29,6 +31,22 @@ def fetch_baseline_mapping(
 
     backend_base_url = os.getenv("BACKEND_BASE_URL", "").strip().rstrip("/")
     internal_secret = os.getenv("BASELINE_INTERNAL_SECRET", "").strip()
+    timeout_raw = os.getenv("BASELINE_MAPPING_TIMEOUT_SECONDS", "").strip()
+
+    if timeout_raw:
+        try:
+            timeout_seconds = float(timeout_raw)
+        except ValueError as exc:
+            raise BaselineMappingConfigurationError(
+                "BASELINE_MAPPING_TIMEOUT_SECONDS must be a positive number."
+            ) from exc
+
+        if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
+            raise BaselineMappingConfigurationError(
+                "BASELINE_MAPPING_TIMEOUT_SECONDS must be a positive number."
+            )
+    else:
+        timeout_seconds = DEFAULT_BASELINE_MAPPING_TIMEOUT_SECONDS
 
     if not backend_base_url or not internal_secret:
         raise BaselineMappingConfigurationError(
@@ -49,7 +67,7 @@ def fetch_baseline_mapping(
             f"{backend_base_url}{BASELINE_ITEMS_PATH}",
             params={"version": assessment_version},
             headers=headers,
-            timeout=5.0,
+            timeout=timeout_seconds,
         )
     except httpx.RequestError as exc:
         raise BaselineMappingUnavailableError(
