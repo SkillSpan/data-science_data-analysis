@@ -440,8 +440,8 @@ Before runtime implementation, confirm:
 - [x] Configuration validation documented.
 - [x] Source weight vs Confidence distinction documented.
 - [x] Initial deterministic weight examples documented.
-- [ ] Backend evidence source/status codes confirmed.
+- [x] Backend evidence source/status codes confirmed.
 - [x] Same-source aggregation rule confirmed for v1.
 - [x] Pending evidence multiplier confirmed as `0.50` for v1.
 - [ ] Machine-readable configuration approved.
-- [ ] Runtime tests implemented after approval.
+- [x] Runtime tests implemented.

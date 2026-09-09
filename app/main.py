@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request
 from app.api.routes.baseline import router as baseline_router
 from app.api.routes.career_role_configuration import router as career_role_configuration_router
 from app.api.routes.skill_gap import router as skill_gap_router
+from app.api.routes.skill_confidence import router as skill_confidence_router
 
 
 logger = logging.getLogger("uvicorn.error")
@@ -62,6 +63,7 @@ async def request_id_middleware(request: Request, call_next):
 app.include_router(skill_gap_router)
 app.include_router(baseline_router)
 app.include_router(career_role_configuration_router)
+app.include_router(skill_confidence_router)
 
 
 @app.get("/health", tags=["System"])
