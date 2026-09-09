@@ -536,4 +536,4 @@ Before runtime implementation, confirm:
 - [x] Same-source aggregation policy confirmed for v1.
 - [x] Missing-date behavior confirmed: `evidence_date` is required; no fallback policy in v1.
 - [ ] Machine-readable config approved.
-- [ ] Runtime deterministic confidence tests implemented after approval.
+- [x] Runtime deterministic confidence tests implemented.
