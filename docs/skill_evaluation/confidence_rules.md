@@ -408,15 +408,21 @@ Distinct references from the same source
 
 Backend persistence contract: the current migrations expose `reference`, `source_record_type`, and `source_record_id`. Backend has confirmed `(source_record_type, source_record_id)` as the canonical source identity when both values are present. When the original source identity is unavailable, `reference` is the fallback identity used by application logic to detect the same evidence and prevent duplication. The current schema does not enforce DB-level uniqueness for the source identity; any such constraint requires a separate migration after NULL and source-record behavior are defined. This identity rule refines how "same reference" is detected and does not change the approved v1 same-source aggregation policy.
 
-Recommended source-level aggregation:
+Skill Level uses the approved recency-weighted aggregation:
 
 ```text
 source_value = SUM(value_i * recency_i) / SUM(recency_i)
 ```
 
-The source category must not gain additional configured weight simply because more evidence records exist. This prevents evidence-quantity inflation while still allowing distinct, recent evidence to influence the source-level value.
+Confidence uses a separate approved `skill-confidence-v1` aggregation after duplicate removal:
 
-For Confidence, the source contribution is likewise capped by its configured source weight. Duplicate records must not increase Confidence.
+```text
+record_support_i = verification_factor_i * recency_factor_i
+source_support = SUM(record_support_i) / COUNT(distinct evidence records)
+source_contribution = source_weight * source_support
+```
+
+The source category must not gain additional configured weight simply because more evidence records exist. The configured source weight is applied once, and duplicate records must not increase Confidence.
 
 ---
 
@@ -535,5 +541,5 @@ Before runtime implementation, confirm:
 - [x] Pending verification multiplier confirmed as `0.50` for v1.
 - [x] Same-source aggregation policy confirmed for v1.
 - [x] Missing-date behavior confirmed: `evidence_date` is required; no fallback policy in v1.
-- [ ] Machine-readable config approved.
+- [x] Machine-readable config approved.
 - [x] Runtime deterministic confidence tests implemented.
