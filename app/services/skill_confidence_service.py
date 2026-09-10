@@ -139,17 +139,12 @@ def calculate_skill_confidence(request: SkillConfidenceRequest) -> dict[str, obj
         if not records:
             continue
 
-        if len(records) > 1:
-            raise SkillConfidenceError(
-                "SAME_SOURCE_CONFIDENCE_AGGREGATION_UNDEFINED",
-                "Multiple distinct evidence records from the same source require an approved Confidence aggregation formula.",
-            )
-
-        evidence = records[0]
-        source_support_factor = (
+        record_support_factors = [
             VERIFICATION_FACTORS[evidence.verification_status]
             * evidence.recency_factor
-        )
+            for evidence in records
+        ]
+        source_support_factor = sum(record_support_factors) / len(record_support_factors)
         configured_weight = EVIDENCE_SOURCE_WEIGHTS[source]
         weighted_support = configured_weight * source_support_factor
         numerator += weighted_support

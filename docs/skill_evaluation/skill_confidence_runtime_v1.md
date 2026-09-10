@@ -17,7 +17,7 @@ This runtime does not modify `skill-gap-v1`, `baseline-v1.0`, or Career Role Con
 
 `POST /api/v1/skill-confidence/calculate`
 
-FastAPI remains stateless. Laravel remains responsible for persistence of the returned analytical result and historical snapshot.
+FastAPI remains stateless and acts as the Data Science reference/parity implementation for Skill Confidence. Laravel is the production owner of the Skill Confidence business calculation, final persistence, stored evaluation result, and learner-skill projection. The FastAPI endpoint must match Laravel 1:1 but is not the authoritative stored-result source.
 
 ## Supported Evidence Sources
 
@@ -55,17 +55,34 @@ The v1 runtime accepts only the approved factors:
 - `0.75`
 - `0.60`
 
-`recency_factor` is supplied as part of the versioned evidence snapshot and validated against `evidence-recency-v1`.
+The approved `evidence-recency-v1` calendar-month thresholds are:
 
-The current API does not invent an `as_of_date` field or derive age boundaries from server runtime time because no such request contract is currently approved. `evidence_date` remains required for traceability and future evidence dates are rejected.
+- `0-6 months` -> `1.00`
+- `>6-12 months` -> `0.90`
+- `>12-24 months` -> `0.75`
+- `>24 months` -> `0.60`
+
+Laravel dynamically recalculates `recency_factor` from `evidence_date` at each `recalculate()` and persists the factor used in the evaluation snapshot for auditability. The FastAPI parity endpoint receives the resulting versioned `recency_factor` and validates that it belongs to `evidence-recency-v1`; it does not independently own the production recency calculation. `evidence_date` remains required for traceability and future evidence dates are rejected.
 
 ## Confidence Formula
 
-For one retained evidence record per source:
+After duplicate removal, each distinct evidence record contributes:
 
-`Confidence = 100 * SUM(source_weight * verification_factor * recency_factor) / SUM(all configured source weights)`
+`record_support = verification_factor * recency_factor`
 
-The final score is rounded to two decimal places and constrained to `0..100`.
+For each evidence source:
+
+`source_support = SUM(record_support) / COUNT(distinct evidence records from that source)`
+
+The source weight is applied exactly once:
+
+`source_contribution = source_weight * source_support`
+
+Final Confidence is:
+
+`Confidence = 100 * SUM(source_contribution) / SUM(all configured source weights)`
+
+For a source with one retained evidence record, this is equivalent to `source_weight * verification_factor * recency_factor`. The final score is rounded to two decimal places and constrained to `0..100`.
 
 ## Confidence Bands
 
@@ -105,15 +122,19 @@ Duplicates never increase Confidence.
 
 ## Multiple Distinct Records From the Same Source
 
-The approved documentation requires same-source evidence to be aggregated before the source weight is applied and requires the source contribution to remain capped at its configured weight.
+The v1 same-source Confidence policy is approved and implemented in both Laravel and the FastAPI parity implementation.
 
-However, the current specification does not define a numeric Confidence aggregation formula for combining multiple distinct `verification_factor * recency_factor` values from the same source.
+After duplicate removal, all independent evidence records from the same source participate in Confidence. Each record uses `verification_factor * recency_factor`, the resulting record-support values are averaged, and the configured source weight is applied once to that source-level average.
 
-Therefore Runtime v1 deliberately does not invent one. If multiple distinct retained records exist for the same source, the service returns:
+This prevents additional independent records from multiplying the configured source weight while still allowing their verification and recency quality to influence source support.
 
-`SAME_SOURCE_CONFIDENCE_AGGREGATION_UNDEFINED`
+Backend parity vector for `certificate` (`source_weight = 0.05`):
 
-A future approved numeric rule requires a versioned analytical decision before this behavior is changed.
+- Evidence 1: `1.00 * 1.00 = 1.00`
+- Evidence 2: `1.00 * 0.90 = 0.90`
+- `source_support = (1.00 + 0.90) / 2 = 0.95`
+- `source_contribution = 0.05 * 0.95 = 0.0475`
+- Expected final Confidence when this is the only contributing source: `4.75%`
 
 ## Deterministic Runtime Coverage
 
@@ -129,14 +150,14 @@ Runtime tests currently cover:
 - canonical source-record identity precedence
 - future evidence rejection
 - unapproved recency-factor rejection
-- explicit rejection of undefined multiple-distinct-same-source Confidence aggregation
+- Backend parity vector for two distinct same-source certificate records -> `4.75`
 - API calculation behavior
 - API no-evidence behavior
 - structured API error response
 
 ## Compatibility and Reproducibility
 
-The response returns all material Confidence version identifiers so Laravel can persist them with the evaluation snapshot:
+The FastAPI parity response returns all material Confidence version identifiers so its analytical output can be compared directly with Laravel's authoritative calculation and persisted snapshot:
 
 - `confidence_algorithm_version`
 - `evidence_weight_config_version`

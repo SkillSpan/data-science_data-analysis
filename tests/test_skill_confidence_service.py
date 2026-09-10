@@ -222,30 +222,41 @@ def test_future_evidence_date_is_rejected() -> None:
     assert exc_info.value.code == "FUTURE_EVIDENCE_DATE"
 
 
-def test_multiple_distinct_same_source_records_require_approved_confidence_aggregation() -> None:
-    with pytest.raises(SkillConfidenceError) as exc_info:
-        calculate_skill_confidence(
-            _request(
-                [
-                    {
-                        "source": "project_performance",
-                        "verification_status": "verified",
-                        "evidence_date": PAST_DATE,
-                        "recency_factor": 1.0,
-                        "reference": "project-A",
-                    },
-                    {
-                        "source": "project_performance",
-                        "verification_status": "verified",
-                        "evidence_date": PAST_DATE,
-                        "recency_factor": 0.75,
-                        "reference": "project-B",
-                    },
-                ]
-            )
+def test_multiple_distinct_same_source_certificate_records_match_backend_vector() -> None:
+    result = calculate_skill_confidence(
+        _request(
+            [
+                {
+                    "source": "certificate",
+                    "verification_status": "verified",
+                    "evidence_date": PAST_DATE,
+                    "recency_factor": 1.0,
+                    "reference": "certificate-A",
+                },
+                {
+                    "source": "certificate",
+                    "verification_status": "verified",
+                    "evidence_date": PAST_DATE,
+                    "recency_factor": 0.9,
+                    "reference": "certificate-B",
+                },
+            ]
         )
+    )
 
-    assert exc_info.value.code == "SAME_SOURCE_CONFIDENCE_AGGREGATION_UNDEFINED"
+    assert result["confidence_score"] == 4.75
+    assert result["confidence_band"] == "low"
+    assert result["duplicate_evidence_detected"] is False
+    assert result["distinct_evidence_count"] == 2
+    assert result["source_contributions"] == [
+        {
+            "source": "certificate",
+            "configured_weight": 0.05,
+            "evidence_records": 2,
+            "source_support_factor": 0.95,
+            "confidence_contribution": 4.75,
+        }
+    ]
 
 
 def test_unapproved_recency_factor_is_rejected() -> None:

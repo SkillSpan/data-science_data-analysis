@@ -299,11 +299,13 @@ Distinct references from the same source
 
 Backend persistence contract: the current migrations expose `reference`, `source_record_type`, and `source_record_id`. Backend has confirmed `(source_record_type, source_record_id)` as the canonical source identity when both values are present. When the original source identity is unavailable, `reference` is the fallback identity used by application logic to detect the same evidence and prevent duplication. The current schema does not enforce DB-level uniqueness for the source identity; any such constraint requires a separate migration after NULL and source-record behavior are defined. This identity rule refines how "same reference" is detected and does not change the approved v1 same-source aggregation policy.
 
-Recommended source-level aggregation:
+Approved Skill Level source-level aggregation:
 
 ```text
 source_value = SUM(value_i * recency_i) / SUM(recency_i)
 ```
+
+This formula is for Skill Level aggregation. Confidence uses the separate `skill-confidence-v1` same-source rule documented in `confidence_rules.md`.
 
 This prevents evidence-quantity inflation. Multiple records from one source must not cause that source to receive its configured weight multiple times.
 
@@ -328,7 +330,7 @@ This policy is part of the approved v1 Skill Evaluation baseline.
 | Duplicate evidence | Prevent/flag; do not double-count. |
 | Unmapped Skill evidence | Exclude/flag; do not guess. |
 | Config version changed | New evaluations use new version; historical evaluations preserve old version. |
-| Multiple valid records for one source | Apply only an approved same-source aggregation policy; otherwise require decision. |
+| Multiple valid records for one source | For Skill Level, use the approved recency-weighted source aggregation. For Confidence, average distinct `verification_factor * recency_factor` record-support values, then apply the source weight once. |
 
 ---
 
@@ -443,5 +445,5 @@ Before runtime implementation, confirm:
 - [x] Backend evidence source/status codes confirmed.
 - [x] Same-source aggregation rule confirmed for v1.
 - [x] Pending evidence multiplier confirmed as `0.50` for v1.
-- [ ] Machine-readable configuration approved.
+- [x] Machine-readable configuration approved.
 - [x] Runtime tests implemented.
