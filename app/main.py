@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request
 
 from app.api.routes.baseline import router as baseline_router
 from app.api.routes.career_role_configuration import router as career_role_configuration_router
+from app.api.routes.practical_experience import router as practical_experience_router
 from app.api.routes.skill_gap import router as skill_gap_router
 from app.api.routes.skill_match import router as skill_match_router
 from app.api.routes.skill_confidence import router as skill_confidence_router
@@ -62,6 +63,7 @@ async def request_id_middleware(request: Request, call_next):
 
 
 app.include_router(skill_gap_router)
+app.include_router(practical_experience_router)
 app.include_router(skill_match_router)
 app.include_router(baseline_router)
 app.include_router(career_role_configuration_router)
