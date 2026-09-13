@@ -1,6 +1,6 @@
 import pytest
 
-from app.schemas.career_role_configuration import CareerRoleConfigurationRequest
+from app.schemas.career_role_configuration import CareerRoleConfigurationRequest, CareerRoleSkillConfiguration, CareerRolePrerequisite
 from app.services.career_role_configuration_service import (
     CareerRoleConfigurationError,
     validate_career_role_configuration,
@@ -124,4 +124,61 @@ def test_prerequisite_cycle_is_rejected() -> None:
         CareerRoleConfigurationError,
         match="contain a cycle",
     ):
+        validate_career_role_configuration(request)
+
+
+def test_multiple_prerequisites_are_validated_and_ordered() -> None:
+    request = _request()
+    request.skills.append(CareerRoleSkillConfiguration.model_validate({
+        "skill_id": 4,
+        "skill_name": "React",
+        "required_level": 4.0,
+        "importance_weight": 0.4,
+        "is_critical": True,
+        "prerequisites": [
+            {"skill_id": 1, "slug": "python", "name": "Python"},
+            {"skill_id": 2, "slug": "sql", "name": "SQL"},
+        ],
+    }))
+
+    result = validate_career_role_configuration(request)
+
+    assert result["prerequisite_order"].index(1) < result["prerequisite_order"].index(4)
+    assert result["prerequisite_order"].index(2) < result["prerequisite_order"].index(4)
+    react = next(skill for skill in result["skills"] if skill["skill_id"] == 4)
+    assert [item["skill_id"] for item in react["prerequisites"]] == [1, 2]
+
+
+def test_multiple_prerequisite_self_reference_is_rejected() -> None:
+    request = _request()
+    request.skills[0].prerequisites = [CareerRolePrerequisite(skill_id=1, slug="python", name="Python")]
+
+    with pytest.raises(CareerRoleConfigurationError, match="cannot depend on itself"):
+        validate_career_role_configuration(request)
+
+
+def test_multiple_prerequisite_missing_skill_is_rejected() -> None:
+    request = _request()
+    request.skills[1].prerequisites = [CareerRolePrerequisite(skill_id=99, slug="missing", name="Missing Skill")]
+
+    with pytest.raises(CareerRoleConfigurationError, match="not present in the same career role"):
+        validate_career_role_configuration(request)
+
+
+def test_duplicate_multiple_prerequisite_reference_is_rejected() -> None:
+    request = _request()
+    request.skills[2].prerequisites = [
+        CareerRolePrerequisite(skill_id=1, slug="python", name="Python"),
+        CareerRolePrerequisite(skill_id=1, slug="python", name="Python"),
+    ]
+
+    with pytest.raises(CareerRoleConfigurationError, match="duplicate prerequisite references"):
+        validate_career_role_configuration(request)
+
+
+def test_multiple_prerequisite_cycle_is_rejected() -> None:
+    request = _request()
+    request.skills[0].prerequisites = [CareerRolePrerequisite(skill_id=3, slug="power-bi", name="Power BI")]
+
+    with pytest.raises(CareerRoleConfigurationError, match="contain a cycle"):
         validate_career_role_configuration(request)
