@@ -4,6 +4,7 @@ from uuid import uuid4
 from fastapi import FastAPI, Request
 
 from app.api.routes.baseline import router as baseline_router
+from app.api.routes.assessment_reliability import router as assessment_reliability_router
 from app.api.routes.career_role_configuration import router as career_role_configuration_router
 from app.api.routes.practical_experience import router as practical_experience_router
 from app.api.routes.skill_gap import router as skill_gap_router
@@ -63,6 +64,7 @@ async def request_id_middleware(request: Request, call_next):
 
 
 app.include_router(skill_gap_router)
+app.include_router(assessment_reliability_router)
 app.include_router(practical_experience_router)
 app.include_router(skill_match_router)
 app.include_router(baseline_router)
