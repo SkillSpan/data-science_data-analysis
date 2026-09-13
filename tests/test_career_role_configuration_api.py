@@ -60,3 +60,30 @@ def test_career_role_configuration_api_rejects_prerequisite_cycle() -> None:
 
     assert response.status_code == 422
     assert "contain a cycle" in response.json()["detail"]
+
+
+def test_career_role_configuration_api_accepts_multiple_prerequisites() -> None:
+    payload = _valid_payload()
+    payload["skills"].append({
+        "skill_id": 3,
+        "skill_name": "React",
+        "required_level": 3.0,
+        "importance_weight": 0.6,
+        "is_critical": True,
+        "prerequisites": [
+            {"skill_id": 1, "slug": "python", "name": "Python"},
+            {"skill_id": 2, "slug": "sql", "name": "SQL"},
+        ],
+    })
+
+    response = client.post(
+        "/api/v1/career-role-configuration/validate",
+        json=payload,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["prerequisite_order"].index(1) < data["prerequisite_order"].index(3)
+    assert data["prerequisite_order"].index(2) < data["prerequisite_order"].index(3)
+    react = next(skill for skill in data["skills"] if skill["skill_id"] == 3)
+    assert [item["skill_id"] for item in react["prerequisites"]] == [1, 2]

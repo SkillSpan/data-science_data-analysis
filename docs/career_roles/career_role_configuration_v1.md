@@ -38,7 +38,8 @@ Each role skill contains:
 - `required_level` on the approved `0..5` scale
 - `importance_weight` with `0 < weight <= 1`
 - `is_critical`
-- optional `prerequisite_skill_id`
+- `prerequisites`: zero or more prerequisite skill references, each containing `skill_id` and optional `slug` / `name` metadata
+- optional legacy `prerequisite_skill_id`, retained for backward compatibility
 
 Duplicate `skill_id` values are rejected.
 
@@ -52,12 +53,27 @@ The configured total must be positive. A positive total different from `1.00` is
 
 ## Prerequisite Validation
 
+Prerequisite relationships may contain multiple prerequisites per skill. The Backend decision-snapshot shape is:
+
+```json
+"prerequisites": [
+  {
+    "skill_id": 2,
+    "slug": "javascript",
+    "name": "JavaScript"
+  }
+]
+```
+
+The validator also accepts the legacy single `prerequisite_skill_id` field for backward compatibility. When both forms are present, their skill IDs are merged for graph validation.
+
 Prerequisite relationships must satisfy all of the following:
 
 1. A skill cannot depend on itself.
-2. A prerequisite must exist inside the same career-role configuration.
-3. The prerequisite graph must be acyclic.
-4. A deterministic topological prerequisite order is returned for valid configurations.
+2. Every prerequisite must exist inside the same career-role configuration.
+3. Duplicate references inside `prerequisites` are rejected.
+4. The prerequisite graph must be acyclic, including cycles involving multiple prerequisites.
+5. A deterministic topological prerequisite order is returned for valid configurations.
 
 Configurations containing cycles are rejected.
 
@@ -86,15 +102,18 @@ Runtime tests cover:
 
 - valid approved configuration
 - deterministic prerequisite ordering
+- multiple prerequisites per skill
+- mixed legacy/new prerequisite compatibility
 - normalization when weights already sum to `1.00`
 - normalization when positive weights do not sum to `1.00`
 - draft production eligibility
 - duplicate skills
 - self-prerequisites
 - missing prerequisite references
-- prerequisite cycles
+- duplicate multiple-prerequisite references
+- prerequisite cycles, including multiple-prerequisite graphs
 - API success and API rejection behavior
 
 ## Compatibility
 
-This validator is an independent configuration-validation boundary. It does not change the existing Skill Gap readiness formula, critical-skill cap behavior, Baseline scoring, or their algorithm versions.
+This validator is an independent configuration-validation boundary. Multiple-prerequisite support is an additive backward-compatible extension of `career-role-config-v1`; the legacy single prerequisite field remains accepted during migration. This change does not modify Skill Match scoring, the existing Skill Gap readiness formula, critical-skill cap behavior, Baseline scoring, or their algorithm versions.

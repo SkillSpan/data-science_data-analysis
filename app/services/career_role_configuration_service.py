@@ -12,6 +12,22 @@ class CareerRoleConfigurationError(ValueError):
     """Represent an invalid career-role configuration."""
 
 
+def _prerequisite_ids(skill) -> list[int]:
+    """Return merged legacy and multiple-prerequisite references deterministically."""
+
+    new_ids = [item.skill_id for item in skill.prerequisites]
+    if len(new_ids) != len(set(new_ids)):
+        raise CareerRoleConfigurationError(
+            f"Skill {skill.skill_id} contains duplicate prerequisite references."
+        )
+
+    prerequisite_ids = set(new_ids)
+    if skill.prerequisite_skill_id is not None:
+        prerequisite_ids.add(skill.prerequisite_skill_id)
+
+    return sorted(prerequisite_ids)
+
+
 
 def _build_prerequisite_order(
     request: CareerRoleConfigurationRequest,
@@ -25,23 +41,20 @@ def _build_prerequisite_order(
     }
 
     for skill in request.skills:
-        prerequisite_id = skill.prerequisite_skill_id
-        if prerequisite_id is None:
-            continue
+        for prerequisite_id in _prerequisite_ids(skill):
+            if prerequisite_id == skill.skill_id:
+                raise CareerRoleConfigurationError(
+                    f"Skill {skill.skill_id} cannot depend on itself."
+                )
 
-        if prerequisite_id == skill.skill_id:
-            raise CareerRoleConfigurationError(
-                f"Skill {skill.skill_id} cannot depend on itself."
-            )
+            if prerequisite_id not in skill_ids:
+                raise CareerRoleConfigurationError(
+                    f"Prerequisite skill {prerequisite_id} for skill "
+                    f"{skill.skill_id} is not present in the same career role."
+                )
 
-        if prerequisite_id not in skill_ids:
-            raise CareerRoleConfigurationError(
-                f"Prerequisite skill {prerequisite_id} for skill "
-                f"{skill.skill_id} is not present in the same career role."
-            )
-
-        indegree[skill.skill_id] += 1
-        dependents[prerequisite_id].append(skill.skill_id)
+            indegree[skill.skill_id] += 1
+            dependents[prerequisite_id].append(skill.skill_id)
 
     queue = deque(sorted(skill_id for skill_id, degree in indegree.items() if degree == 0))
     order: list[int] = []
@@ -89,6 +102,7 @@ def validate_career_role_configuration(
             "skill_id": skill.skill_id,
             "normalized_importance_weight": skill.importance_weight / weight_total,
             "prerequisite_skill_id": skill.prerequisite_skill_id,
+            "prerequisites": [item.model_dump() for item in skill.prerequisites],
         }
         for skill in request.skills
     ]

@@ -4,6 +4,14 @@ from typing import Literal
 from pydantic import BaseModel, Field
 
 
+class CareerRolePrerequisite(BaseModel):
+    """Represent one prerequisite skill reference from the Backend decision snapshot."""
+
+    skill_id: int = Field(..., gt=0)
+    slug: str | None = Field(default=None, min_length=1, max_length=100)
+    name: str | None = Field(default=None, min_length=2, max_length=100)
+
+
 class CareerRoleSkillConfiguration(BaseModel):
     """Represent one required skill in a versioned career role."""
 
@@ -13,6 +21,7 @@ class CareerRoleSkillConfiguration(BaseModel):
     importance_weight: float = Field(..., gt=0, le=1)
     is_critical: bool
     prerequisite_skill_id: int | None = Field(default=None, gt=0)
+    prerequisites: list[CareerRolePrerequisite] = Field(default_factory=list)
 
 
 class CareerRoleConfigurationRequest(BaseModel):
@@ -34,6 +43,7 @@ class NormalizedCareerRoleSkill(BaseModel):
     skill_id: int
     normalized_importance_weight: float = Field(..., ge=0, le=1)
     prerequisite_skill_id: int | None = None
+    prerequisites: list[CareerRolePrerequisite] = Field(default_factory=list)
 
 
 class CareerRoleConfigurationValidationResponse(BaseModel):
