@@ -1,103 +1,73 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://skillspan.example/schemas/profile-context-v1.schema.json",
-  "title": "SkillSpan Profile Context v1",
+  "title": "Profile Completeness v1 Request",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "student_profile_id",
-    "profile_schema_version",
-    "profile_updated_at",
-    "profile_completeness",
-    "education",
-    "career",
-    "availability",
-    "preferences",
-    "visibility",
-    "consent"
+    "fields"
   ],
   "properties": {
-    "student_profile_id": {"type": "integer", "minimum": 1},
-    "profile_schema_version": {"const": "profile-context-v1"},
-    "profile_updated_at": {"type": "string", "format": "date-time"},
-    "profile_completeness": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["score", "algorithm_version", "required_missing_fields", "recommended_missing_fields"],
-      "properties": {
-        "score": {"type": "number", "minimum": 0, "maximum": 100},
-        "algorithm_version": {"const": "profile-completeness-v1"},
-        "configuration_version": {"type": ["string", "null"]},
-        "required_missing_fields": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
-        "recommended_missing_fields": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
-        "completed_fields": {"type": "array", "uniqueItems": true, "items": {"type": "string"}},
-        "not_applicable_fields": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
-      }
+    "student_profile_id": {
+      "type": "integer",
+      "minimum": 1
     },
-    "education": {
+    "fields": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["university", "specialization", "academic_level", "enrollment_status", "graduation_status", "graduation_date"],
       "properties": {
-        "university": {"$ref": "#/$defs/canonicalEntity"},
-        "specialization": {"$ref": "#/$defs/canonicalEntity"},
-        "academic_level": {"type": ["string", "null"], "minLength": 1},
-        "enrollment_status": {"type": ["string", "null"], "minLength": 1},
-        "graduation_status": {"type": ["string", "null"], "minLength": 1},
-        "graduation_date": {"type": ["string", "null"], "format": "date"}
+        "university_name": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 100
+        },
+        "student_university_number": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 100
+        },
+        "specialization": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 100
+        },
+        "academic_level": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 100
+        },
+        "career_status": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 100
+        },
+        "availability": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 100
+        },
+        "interests": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
       }
-    },
-    "career": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["career_status", "primary_career_role_id"],
-      "properties": {
-        "career_status": {"type": ["string", "null"], "minLength": 1},
-        "primary_career_role_id": {"type": ["integer", "null"], "minimum": 1}
-      }
-    },
-    "availability": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["weekly_hours"],
-      "properties": {
-        "weekly_hours": {"type": ["number", "null"], "minimum": 0, "maximum": 168}
-      }
-    },
-    "preferences": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["preferred_work_type", "interests", "other_preferences"],
-      "properties": {
-        "preferred_work_type": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
-        "interests": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
-        "other_preferences": {"type": "object"}
-      }
-    },
-    "visibility": {"type": "string", "minLength": 1},
-    "consent": {
-      "type": "object",
-      "additionalProperties": false,
-      "required": ["personalization_allowed", "consent_version"],
-      "properties": {
-        "personalization_allowed": {"type": "boolean"},
-        "consent_version": {"type": ["string", "null"]}
-      }
-    }
-  },
-  "$defs": {
-    "canonicalEntity": {
-      "type": ["object", "null"],
-      "additionalProperties": false,
-      "required": ["id", "name"],
-      "properties": {
-        "id": {"type": ["integer", "null"], "minimum": 1},
-        "name": {"type": ["string", "null"], "minLength": 2, "maxLength": 150}
-      },
-      "anyOf": [
-        {"properties": {"id": {"type": "integer"}}},
-        {"properties": {"name": {"type": "string", "minLength": 2}}}
-      ]
     }
   }
 }
