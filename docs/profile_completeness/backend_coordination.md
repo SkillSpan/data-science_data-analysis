@@ -1,61 +1,117 @@
-# SkillSpan — Backend Coordination for Profile Completeness
+# SkillSpan - Backend Coordination for Profile Completeness v1
 
-## Purpose
-Track the Backend ↔ Data Science confirmations required before profile attributes are used by future Readiness and Personalization models.
+## Status
 
-## Current Data Science Status
-- Profile Completeness metric definition: **Prepared**
-- Profile schema requirements: **Prepared**
-- Proposed `profile-context-v1` payload contract: **Prepared**
-- JSON Schema: **Prepared**
-- Runtime FastAPI integration: **Not implemented yet**
-- `skill-gap-v1` changes: **Not required for this task**
+Backend -> Data Science contract is approved and runtime implementation is complete.
 
-## Backend Confirmations Required
+- Algorithm version: `profile-completeness-v1`
+- Configuration version: `profile-completeness-config-v1`
+- FastAPI endpoint: `POST /api/v1/profile-completeness`
+- Backend field contract: Confirmed
+- Runtime tests: Implemented
+- `skill-gap-v1` changes: Not required
 
-| Concept | Proposed Contract Field | Status |
-|---|---|---|
-| Student profile identifier | `student_profile_id` | Pending |
-| University | `university` | Pending |
-| Specialization | `specialization` | Pending |
-| Academic level | `academic_level` | Pending |
-| Education | `education` | Pending |
-| Enrollment status | `enrollment_status` | Pending |
-| Graduation status | `graduation_status` | Pending |
-| Graduation date | `graduation_date` | Pending |
-| Career status | `career_status` | Pending |
-| Primary career goal | `primary_career_role_id` | Pending |
-| Interests | `interests` | Pending |
-| Availability | `availability` | Pending |
-| Preferred work type / preferences | `preferences` | Pending |
-| Visibility | `visibility` | Pending |
-| Consent | `consent` | Pending |
+## Approved StudentProfile Fields
 
-## Contract Rules to Confirm
-1. Whether university and specialization are strings, foreign keys, or structured objects.
-2. Canonical enum values for academic/enrollment/graduation/career status.
-3. Which fields are required, recommended, optional, nullable, or not applicable.
-4. Whether empty strings are normalized to `null`.
-5. Whether list-like fields use IDs, slugs, or names.
-6. How visibility and consent are exposed without leaking restricted information.
-7. Whether Backend stores/calculates completeness or only supplies authoritative attributes.
-8. Whether a profile version or `updated_at` is included for reproducibility.
+The Backend supplies exactly these seven fields:
 
-## Integration Boundary
-- Laravel remains the source of truth for profile/business data.
-- Frontend must not supply scoring attributes directly to FastAPI.
-- FastAPI must not query the Laravel database directly.
-- Laravel should build a trusted payload from authoritative stored profile data.
-- Data Science validates the approved payload schema before future use.
+1. `university_name`
+2. `student_university_number`
+3. `specialization`
+4. `academic_level`
+5. `career_status`
+6. `interests`
+7. `availability`
 
-## Approval Gate
-Runtime implementation begins only after Backend confirms actual field names, enums/reference values, null semantics, and final payload shape.
+All seven fields are always applicable and have equal weight (`1`).
+
+## Completion Rules
+
+The following six fields are free strings with Backend validation `string|max:100`:
+
+- `university_name`
+- `student_university_number`
+- `specialization`
+- `academic_level`
+- `career_status`
+- `availability`
+
+A free-string field is complete when:
+
+```text
+value != null && trim(value) != ''
+```
+
+`Interests` is complete when:
+
+```text
+interests != null && interests != []
+```
+
+Missing or `null` fields are incomplete, not unavailable.
+
+## Approved Backend -> FastAPI Snapshot
+
+```json
+{
+  "student_profile_id": 123,
+  "fields": {
+    "university_name": "Test University",
+    "student_university_number": "12345",
+    "specialization": "Computer Science",
+    "academic_level": "Senior",
+    "career_status": "student",
+    "interests": ["data-analysis"],
+    "availability": "full_time"
+  }
+}
+```
+
+Laravel remains the source of truth for `StudentProfile` persistence and builds this trusted snapshot.
+FastAPI remains stateless and does not query or mutate the Laravel database.
+
+## Formula
+
+```text
+Profile Completeness Score =
+(completed_fields_count / 7) * 100
+```
+
+The result is rounded to two decimal places.
+
+## Composite Readiness Coordination
+
+Backend confirmed and implemented the missing-component policy:
+
+- unavailable components are excluded rather than converted to zero;
+- remaining component weights are renormalized;
+- `is_provisional = true` when any component is excluded;
+- `is_provisional = false` when all components are available.
+
+Backend also confirmed the Composite Readiness critical-skill cap:
+
+```text
+any critical skill match ratio < 0.50
+-> final composite readiness capped at 69.0
+```
+
+This policy is independent from the existing `skill-gap-v1` rule:
+
+```text
+critical gap >= 2
+-> skill-gap readiness cap = 60
+```
 
 ## Definition of Done
-- [x] Profile Completeness requirements defined.
-- [x] Proposed profile data contract documented.
-- [x] Machine-readable JSON Schema prepared.
-- [ ] Backend field names confirmed.
-- [ ] Backend enum/reference formats confirmed.
-- [ ] Final Backend → Data Science payload approved.
-- [ ] Contract validation tests added after approval.
+
+- [x] Backend field names confirmed.
+- [x] Backend field types and maximum lengths confirmed.
+- [x] Null and blank-string semantics confirmed.
+- [x] Interests completion rule confirmed.
+- [x] Equal-weight configuration confirmed.
+- [x] Final Backend -> Data Science payload approved.
+- [x] Machine-readable JSON Schema updated.
+- [x] FastAPI runtime endpoint implemented.
+- [x] Service and API contract tests added.
+- [x] Composite missing-component policy confirmed.
+- [x] Composite critical-skill cap confirmed.
