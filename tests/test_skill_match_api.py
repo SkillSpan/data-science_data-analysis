@@ -83,3 +83,13 @@ def test_skill_match_api_rejects_invalid_weight() -> None:
     response = client.post("/api/v1/skill-match", json=payload)
 
     assert response.status_code == 422
+
+
+def test_skill_match_api_rejects_missing_role_data() -> None:
+    for field_name in ("career_role_id", "target_role"):
+        payload = _payload()
+        payload.pop(field_name)
+
+        response = client.post("/api/v1/skill-match", json=payload)
+
+        assert response.status_code == 422
