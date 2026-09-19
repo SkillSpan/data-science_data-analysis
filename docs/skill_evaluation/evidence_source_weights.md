@@ -446,4 +446,5 @@ Before runtime implementation, confirm:
 - [x] Same-source aggregation rule confirmed for v1.
 - [x] Pending evidence multiplier confirmed as `0.50` for v1.
 - [x] Machine-readable configuration approved.
-- [x] Runtime tests implemented.
+- [x] Skill Confidence runtime tests implemented.
+- [ ] Skill Level aggregation runtime tests implemented after approved runtime contract.
