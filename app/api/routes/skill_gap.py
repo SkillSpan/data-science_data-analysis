@@ -1,7 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 
 from app.schemas.skill_gap import SkillGapRequest, SkillGapResponse
-from app.services.skill_gap_service import calculate_skill_gap
+from app.services.skill_gap_service import SkillGapError, calculate_skill_gap
 
 
 router = APIRouter(
@@ -22,6 +22,12 @@ router = APIRouter(
 def analyze_skill_gap(request: SkillGapRequest) -> SkillGapResponse:
     """Analyze a user's skills against a target career role."""
 
-    result = calculate_skill_gap(request)
+    try:
+        result = calculate_skill_gap(request)
+    except SkillGapError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"code": exc.code, "message": str(exc)},
+        ) from exc
 
     return SkillGapResponse.model_validate(result)

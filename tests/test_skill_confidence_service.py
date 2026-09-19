@@ -294,3 +294,27 @@ def test_partial_canonical_identity_is_rejected() -> None:
                 }
             ],
         )
+
+
+def test_skill_confidence_is_deterministic_for_identical_input() -> None:
+    evidence = [
+        {
+            "source": "assessment_test",
+            "verification_status": "verified",
+            "evidence_date": PAST_DATE,
+            "recency_factor": 1.0,
+            "reference": "assessment-determinism",
+        },
+        {
+            "source": "project_performance",
+            "verification_status": "verified",
+            "evidence_date": PAST_DATE,
+            "recency_factor": 0.75,
+            "reference": "project-determinism",
+        },
+    ]
+
+    first = calculate_skill_confidence(_request(evidence))
+    second = calculate_skill_confidence(_request(evidence))
+
+    assert first == second

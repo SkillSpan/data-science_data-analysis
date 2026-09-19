@@ -541,5 +541,5 @@ Before runtime implementation, confirm:
 - [x] Pending verification multiplier confirmed as `0.50` for v1.
 - [x] Same-source aggregation policy confirmed for v1.
 - [x] Missing-date behavior confirmed: `evidence_date` is required; no fallback policy in v1.
-- [x] Machine-readable config approved.
+- [x] Versioned machine-readable Data Science configuration identifiers documented; Backend registry binding and runtime version resolution remain pending.
 - [x] Runtime deterministic confidence tests implemented.

@@ -445,5 +445,6 @@ Before runtime implementation, confirm:
 - [x] Backend evidence source/status codes confirmed.
 - [x] Same-source aggregation rule confirmed for v1.
 - [x] Pending evidence multiplier confirmed as `0.50` for v1.
-- [x] Machine-readable configuration approved.
-- [x] Runtime tests implemented.
+- [x] Machine-readable Data Science configuration representation documented; Backend registry binding and runtime version resolution remain pending.
+- [x] Skill Confidence runtime tests implemented.
+- [ ] Skill Level aggregation runtime tests implemented after approved runtime contract.

@@ -182,3 +182,10 @@ def test_multiple_prerequisite_cycle_is_rejected() -> None:
 
     with pytest.raises(CareerRoleConfigurationError, match="contain a cycle"):
         validate_career_role_configuration(request)
+
+
+def test_career_role_configuration_is_deterministic_for_identical_input() -> None:
+    first = validate_career_role_configuration(_request())
+    second = validate_career_role_configuration(_request())
+
+    assert first == second
