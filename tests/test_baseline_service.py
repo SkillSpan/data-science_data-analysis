@@ -161,3 +161,17 @@ def test_mapping_version_mismatch_is_rejected() -> None:
             _request([{"item_id": "sql-001", "answer": "B"}]),
             mapping,
         )
+
+
+def test_evaluate_baseline_is_deterministic_for_identical_input() -> None:
+    responses = [
+        {"item_id": "sql-001", "answer": "B"},
+        {"item_id": "sql-002", "answer": "A"},
+        {"item_id": "python-001", "answer": "C"},
+        {"item_id": "python-002", "answer": "4"},
+    ]
+
+    first = evaluate_baseline(_request(responses), _mapping())
+    second = evaluate_baseline(_request(responses), _mapping())
+
+    assert first == second
