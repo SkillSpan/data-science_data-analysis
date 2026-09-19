@@ -6,8 +6,23 @@ CRITICAL_SKILL_MAJOR_GAP_THRESHOLD = 2.0
 CRITICAL_SKILL_READINESS_CAP = 60.0
 
 
+class SkillGapError(ValueError):
+    """Represent a deterministic Skill Gap validation error."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
 def calculate_skill_gap(request: SkillGapRequest) -> dict[str, object]:
     """Calculate weighted skill gaps and the final readiness score."""
+
+    skill_ids = [skill.skill_id for skill in request.skills]
+    if len(skill_ids) != len(set(skill_ids)):
+        raise SkillGapError(
+            "DUPLICATE_SKILL_ID",
+            "Skill Gap input must not contain duplicate skill_id values.",
+        )
 
     skill_results: list[dict[str, object]] = []
     critical_skill_ids: list[int] = []

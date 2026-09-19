@@ -420,6 +420,7 @@ Examples include:
 - `importance_weight <= 0`.
 - `importance_weight > 1`.
 - Empty `skills` array.
+- Duplicate `skill_id` values in the same request (`DUPLICATE_SKILL_ID`).
 
 Example invalid weight:
 

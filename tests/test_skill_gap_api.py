@@ -562,6 +562,18 @@ def test_identical_requests_produce_identical_results() -> None:
     assert second_response.status_code == 200
     assert first_response.json() == second_response.json()
 
+def test_analyze_skill_gap_rejects_duplicate_skill_ids() -> None:
+    """Duplicate Backend skill identifiers must be rejected deterministically."""
+
+    payload = _valid_single_skill_payload()
+    payload["skills"] = [payload["skills"][0], dict(payload["skills"][0])]
+
+    response = client.post("/api/v1/skill-gap", json=payload)
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "DUPLICATE_SKILL_ID"
+
+
 def test_request_id_header_is_preserved() -> None:
     """An incoming Backend request ID should be returned unchanged."""
 
