@@ -34,7 +34,7 @@
 ## Pending Contracts
 
 ### Composite Readiness
-Approved business rules are known: Skill Match 65%, Practical Experience 20%, Assessment Reliability 10%, Profile Completeness 5%. Unavailable components are excluded and remaining weights renormalized; result becomes provisional. Critical skill match ratio below 0.50 caps Composite Readiness at 69. FastAPI runtime waits for the exact Backend request/response and version contract.
+Approved business rules are confirmed: Skill Match 65%, Practical Experience 20%, Assessment Reliability 10%, Profile Completeness 5%. Unavailable components are represented as null, excluded from the calculation, and the remaining weights are renormalized; the result becomes provisional. A critical skill with match_ratio below 0.50 caps Composite Readiness at 69. The external Laravel POST /api/v1/readiness/calculate contract is confirmed, and Skill Match now preserves is_critical in each skill result for downstream critical-cap evaluation. What remains unresolved is execution ownership: whether Composite Readiness stays calculated in Laravel or Laravel delegates the analytical calculation to FastAPI. If FastAPI is expected to calculate it, an exact internal Laravel-to-FastAPI snapshot request/response contract, Composite-specific version identifiers, and band thresholds are still required; the external Laravel endpoint contract alone is not a stateless FastAPI input contract.
 
 ### Career Roadmap / Next Best Action
 No approved FastAPI runtime contract yet for phases, actions, effort, duration, availability changes, role changes, or Next Best Action.
@@ -47,7 +47,7 @@ Version identifiers exist and career-role-config-v1 is validated. Backend regist
 
 ## Validation Baseline
 
-134 passed, 1 known Starlette TestClient/httpx deprecation warning.
+135 passed, 1 known Starlette TestClient/httpx deprecation warning.
 
 ## Closure Boundary
 
@@ -82,7 +82,7 @@ These identifiers describe the current analytical implementations or documented 
 
 Pending items become implementation-ready only when the corresponding contract is confirmed:
 
-1. Composite Readiness: exact Backend request schema, response schema, algorithm/configuration version identifiers, and persistence handoff.
+1. Composite Readiness: confirm execution ownership. If Laravel delegates Composite calculation to FastAPI, provide the exact internal Laravel-to-FastAPI snapshot request/response schema, Composite-specific algorithm/configuration version identifiers, band thresholds, and persistence handoff. The external Laravel readiness endpoint contract is already confirmed.
 2. Career Roadmap / Next Best Action: approved roadmap inputs, outputs, phases, actions, ordering, effort, duration, availability behavior, and recalculation rules.
 3. Sprint 2 Profile Delta: canonical `student_number` migration rule, country representation, scoring/applicability decision, compatibility policy, and exact Backend snapshot.
 4. Runtime Configuration Registry: active-version selection rules, lifecycle/status values, approval ownership, registry binding, and persistence of the exact configuration reference used.
