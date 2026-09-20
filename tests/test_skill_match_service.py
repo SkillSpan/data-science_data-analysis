@@ -206,3 +206,17 @@ def test_identical_input_produces_identical_output() -> None:
     )
 
     assert calculate_skill_match(request) == calculate_skill_match(request)
+
+
+def test_skill_results_preserve_is_critical_flag() -> None:
+    result = calculate_skill_match(
+        _request(
+            [
+                {"skill_id": 7, "skill_name": "SQL", "current_level": 1, "required_level": 4, "importance_weight": 0.6, "is_critical": True},
+                {"skill_id": 11, "skill_name": "Python", "current_level": 4, "required_level": 4, "importance_weight": 0.4, "is_critical": False},
+            ]
+        )
+    )
+
+    assert result["skill_results"][0]["is_critical"] is True
+    assert result["skill_results"][1]["is_critical"] is False

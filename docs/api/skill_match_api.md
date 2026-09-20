@@ -76,6 +76,16 @@ else:
 
 The final result is rounded to two decimal places and capped at `100.00`.
 
+## Skill Result Criticality
+
+Each item in `skill_results` preserves the role configuration criticality flag:
+
+```text
+is_critical = input skill.is_critical
+```
+
+This does not change the `skill-match-v1` score or weighting formula. It preserves approved role metadata so downstream Composite Readiness can apply its independent critical-skill policy using `is_critical` together with `match_ratio`.
+
 ## Status Semantics
 
 - `met`: required level is positive and the learner meets or exceeds it.
