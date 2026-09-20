@@ -66,6 +66,7 @@ def calculate_skill_match(request: SkillMatchRequest) -> dict[str, object]:
                 "current_level": skill.current_level,
                 "required_level": skill.required_level,
                 "importance_weight": skill.importance_weight,
+                "is_critical": skill.is_critical,
                 "normalized_importance_weight": round(normalized_weight, 6),
                 "achieved_level": round(achieved_level, 2),
                 "match_ratio": round(match_ratio, 6),

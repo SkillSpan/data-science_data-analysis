@@ -45,6 +45,8 @@ def test_skill_match_api_returns_weighted_match() -> None:
     assert body["normalized_weight_total"] == 1.0
     assert body["met_skills"] == 1
     assert body["partial_skills"] == 1
+    assert body["skill_results"][0]["is_critical"] is True
+    assert body["skill_results"][1]["is_critical"] is False
 
 
 def test_skill_match_api_caps_current_above_required_at_100() -> None:

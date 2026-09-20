@@ -24,6 +24,7 @@ class SkillMatchSkillResult(BaseModel):
     current_level: float = Field(..., ge=0, le=5)
     required_level: float = Field(..., ge=0, le=5)
     importance_weight: float = Field(..., gt=0, le=1)
+    is_critical: bool
     normalized_importance_weight: float = Field(..., ge=0, le=1)
     achieved_level: float = Field(..., ge=0, le=5)
     match_ratio: float = Field(..., ge=0, le=1)
