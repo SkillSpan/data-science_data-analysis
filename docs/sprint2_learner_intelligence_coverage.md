@@ -28,13 +28,23 @@
 - Missing role data: covered.
 - Prerequisite cycle: covered.
 - Availability changes: pending Roadmap contract.
-- Role changes: pending Roadmap/Readiness contract.
+- Role changes: pending Career Roadmap / Next Best Action contract.
 - Configuration changes: versioning documented; runtime registry resolution pending.
 
-## Pending Contracts
+## Confirmed Readiness Ownership
 
 ### Composite Readiness
-Approved business rules are confirmed: Skill Match 65%, Practical Experience 20%, Assessment Reliability 10%, Profile Completeness 5%. Unavailable components are represented as null, excluded from the calculation, and the remaining weights are renormalized; the result becomes provisional. A critical skill with match_ratio below 0.50 caps Composite Readiness at 69. The external Laravel POST /api/v1/readiness/calculate contract is confirmed, and Skill Match now preserves is_critical in each skill result for downstream critical-cap evaluation. What remains unresolved is execution ownership: whether Composite Readiness stays calculated in Laravel or Laravel delegates the analytical calculation to FastAPI. If FastAPI is expected to calculate it, an exact internal Laravel-to-FastAPI snapshot request/response contract, Composite-specific version identifiers, and band thresholds are still required; the external Laravel endpoint contract alone is not a stateless FastAPI input contract.
+Composite Readiness is fully owned and orchestrated by Laravel. FastAPI does not calculate Composite Readiness and does not receive a Composite snapshot. In this flow, FastAPI participates only through `POST /api/v1/skill-match`; Practical Experience, Assessment Reliability, Profile Completeness, aggregation, provisional handling, the critical-skill cap, and readiness band selection are calculated in Laravel.
+
+The confirmed Laravel aggregation weights are Skill Match 65%, Practical Experience 20%, Assessment Reliability 10%, and Profile Completeness 5%. Unavailable components are represented as null, excluded from the calculation, and the remaining available weights are renormalized; the result is marked provisional.
+
+The critical-skill rule is evaluated from FastAPI Skill Match results: each skill with `is_critical = true` and `match_ratio < 0.50` is included in `critical_skill_names`; the number of such skills is `critical_skill_gap_count`. When applicable, Laravel caps Composite Readiness at the fixed `critical_skill_readiness_cap` of 69.0.
+
+The confirmed Laravel readiness bands are: `foundation_needed` 0-39.99, `developing` 40-59.99, `moderate_readiness` 60-74.99, `near_ready` 75-89.99, and `highly_ready` 90-100.
+
+The external Laravel endpoint remains `POST /api/v1/readiness/calculate`. Its `algorithm_version` currently reflects the FastAPI Skill Match algorithm version (`skill-match-v1`), while `configuration_version` reflects Laravel's internal formula/weight configuration (`config-v1`). A dedicated Composite version identifier such as `composite-readiness-v1` has been proposed for cross-team adoption but is not recorded here as approved until Backend confirmation.
+
+## Pending Contracts
 
 ### Career Roadmap / Next Best Action
 No approved FastAPI runtime contract yet for phases, actions, effort, duration, availability changes, role changes, or Next Best Action.
@@ -72,6 +82,7 @@ These identifiers describe the current analytical implementations or documented 
 ## Service Ownership Boundary
 
 - Laravel remains the source of truth for database persistence, learner identity, authorization, transactional data, assessment definitions, mappings, role configuration persistence, and authoritative historical results.
+- Laravel is the sole owner and orchestrator of Composite Readiness aggregation, unavailable-component renormalization, provisional status, critical-skill cap application, and readiness band selection. FastAPI contributes only Skill Match results to this flow.
 - FastAPI remains stateless and owns deterministic analytical calculation and validation only.
 - FastAPI must not query or mutate the Laravel database directly.
 - The frontend must not call FastAPI directly; analytical requests flow through Laravel.
@@ -82,9 +93,8 @@ These identifiers describe the current analytical implementations or documented 
 
 Pending items become implementation-ready only when the corresponding contract is confirmed:
 
-1. Composite Readiness: confirm execution ownership. If Laravel delegates Composite calculation to FastAPI, provide the exact internal Laravel-to-FastAPI snapshot request/response schema, Composite-specific algorithm/configuration version identifiers, band thresholds, and persistence handoff. The external Laravel readiness endpoint contract is already confirmed.
-2. Career Roadmap / Next Best Action: approved roadmap inputs, outputs, phases, actions, ordering, effort, duration, availability behavior, and recalculation rules.
-3. Sprint 2 Profile Delta: canonical `student_number` migration rule, country representation, scoring/applicability decision, compatibility policy, and exact Backend snapshot.
-4. Runtime Configuration Registry: active-version selection rules, lifecycle/status values, approval ownership, registry binding, and persistence of the exact configuration reference used.
+1. Career Roadmap / Next Best Action: approved roadmap inputs, outputs, phases, actions, ordering, effort, duration, availability behavior, and recalculation rules.
+2. Sprint 2 Profile Delta: canonical `student_number` migration rule, country representation, scoring/applicability decision, compatibility policy, and exact Backend snapshot.
+3. Runtime Configuration Registry: active-version selection rules, lifecycle/status values, approval ownership, registry binding, and persistence of the exact configuration reference used.
 
 Until those triggers are satisfied, the pending items remain intentionally blocked rather than partially implemented from assumptions.
