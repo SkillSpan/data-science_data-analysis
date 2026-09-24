@@ -100,9 +100,11 @@ No current date, random value, database query, or external service is used in `s
 
 ## Relationship to Readiness
 
-The SRS reserves Skill Match as the `65%` default component of the future multi-component Readiness algorithm.
+Skill Match is the `65%` component of the current Laravel-owned Composite Readiness calculation under the confirmed configuration. FastAPI owns only the deterministic `skill-match-v1` component calculation and returns the component score plus per-skill metadata required by Laravel.
 
-Do not add Practical Experience, Assessment Reliability, Profile Completeness, or critical-skill readiness caps to `skill-match-v1`. Those belong to the separate versioned Readiness algorithm.
+Do not add Practical Experience, Assessment Reliability, Profile Completeness, Composite readiness caps, or aggregate critical-skill fields such as `critical_skill_gap_count` and `critical_skill_names` to `skill-match-v1`. Laravel derives those aggregate critical-skill values from each Skill Match result item using `is_critical` and `match_ratio`, and the same Laravel-derived values must drive both the cap decision and the external readiness response.
+
+`skill-gap-v1` remains a separate analytical algorithm with its own critical-gap semantics and readiness cap. Its cap is not part of Composite Readiness and must not be substituted for the Laravel-owned Composite critical-skill policy.
 
 ## Test Coverage
 
