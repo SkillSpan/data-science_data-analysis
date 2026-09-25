@@ -3,7 +3,7 @@ from fastapi.testclient import TestClient
 from app.main import app
 
 
-client = TestClient(app)
+client = TestClient(app, headers={"Authorization": "Bearer test-service-token"})
 
 
 def _valid_payload() -> dict:

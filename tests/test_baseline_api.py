@@ -98,7 +98,7 @@ def test_baseline_response_rejects_overall_score_above_100() -> None:
         )
 
 
-client = TestClient(app)
+client = TestClient(app, headers={"Authorization": "Bearer test-service-token"})
 
 
 def test_baseline_endpoint_returns_service_unavailable_without_backend_mapping() -> None:
