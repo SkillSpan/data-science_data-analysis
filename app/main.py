@@ -14,7 +14,7 @@ from app.api.routes.profile_completeness import router as profile_completeness_r
 from app.api.routes.skill_gap import router as skill_gap_router
 from app.api.routes.skill_match import router as skill_match_router
 from app.api.routes.skill_confidence import router as skill_confidence_router
-
+from app.api.routes.project_matching import router as project_matching_router
 
 logger = logging.getLogger("uvicorn.error")
 
@@ -119,6 +119,7 @@ app.include_router(skill_match_router)
 app.include_router(baseline_router)
 app.include_router(career_role_configuration_router)
 app.include_router(skill_confidence_router)
+app.include_router(project_matching_router)
 
 
 @app.get("/health", tags=["System"])
