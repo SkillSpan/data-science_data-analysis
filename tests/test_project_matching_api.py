@@ -9,8 +9,8 @@ client = TestClient(app, headers={"Authorization": "Bearer test-service-token"})
 def _payload() -> dict[str, object]:
     return {
         "request_id": "project-match-api-1",
-        "algorithm_version": "1",
-        "configuration_version": "project-matching-v1",
+        "algorithm_version": "project-matching-v1",
+        "configuration_version": "project-matching-config-v1",
         "project_version": 1,
         "learner": {
             "user_id": 20,
@@ -131,3 +131,22 @@ def test_project_matching_api_repeated_request_is_identical() -> None:
     assert first.status_code == 200
     assert second.status_code == 200
     assert first.json() == second.json()
+
+def test_project_matching_api_rejects_unsupported_request_algorithm_version() -> None:
+    payload = _payload()
+    payload["algorithm_version"] = "project-matching-v2"
+
+    response = client.post("/api/v1/project-matching", json=payload)
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "UNSUPPORTED_ALGORITHM_VERSION"
+
+
+def test_project_matching_api_rejects_unsupported_request_configuration_version() -> None:
+    payload = _payload()
+    payload["configuration_version"] = "project-matching-config-v2"
+
+    response = client.post("/api/v1/project-matching", json=payload)
+
+    assert response.status_code == 422
+    assert response.json()["detail"]["code"] == "UNSUPPORTED_CONFIGURATION_VERSION"

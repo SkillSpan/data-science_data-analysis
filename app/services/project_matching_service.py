@@ -875,10 +875,26 @@ def calculate_project_match(
 
     config = (
         configuration
-        or ProjectMatchingConfiguration()
+        or ProjectMatchingConfiguration(
+            algorithm_version=request.algorithm_version,
+            configuration_version=request.configuration_version,
+        )
     )
 
     _validate_configuration(config)
+
+    if request.algorithm_version != config.algorithm_version:
+        raise ProjectMatchingError(
+            "ALGORITHM_VERSION_MISMATCH",
+            "request.algorithm_version must match the Project Matching configuration.",
+        )
+
+    if request.configuration_version != config.configuration_version:
+        raise ProjectMatchingError(
+            "CONFIGURATION_VERSION_MISMATCH",
+            "request.configuration_version must match the Project Matching configuration.",
+        )
+
     _validate_matching_input(request)
 
     skill_evaluation = evaluate_skill_compatibility(

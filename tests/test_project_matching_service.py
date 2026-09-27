@@ -21,8 +21,8 @@ from app.services.project_matching_service import (
 def _payload(project_id: int = 10, request_id: str = "project-match-test") -> dict[str, object]:
     return {
         "request_id": request_id,
-        "algorithm_version": "1",
-        "configuration_version": "project-matching-v1",
+        "algorithm_version": "project-matching-v1",
+        "configuration_version": "project-matching-config-v1",
         "project_version": 1,
         "learner": {
             "user_id": 20,
