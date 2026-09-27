@@ -1,1 +1,4 @@
 fastapi[standard]
+google-genai==1.61.0
+groq==0.13.1
+httpx==0.28.1

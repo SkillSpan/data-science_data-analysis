@@ -3,7 +3,7 @@ services:
     name: skillspan-intelligence
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python -m app.assistant.rag.ingest
     startCommand: python -m uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
@@ -11,7 +11,23 @@ services:
         value: production
       - key: BACKEND_BASE_URL
         value: https://back-end-zdip.onrender.com
+      - key: DATA_SCIENCE_SERVICE_TOKEN
+        sync: false
       - key: BASELINE_INTERNAL_SECRET
         sync: false
       - key: BASELINE_MAPPING_TIMEOUT_SECONDS
         value: "8.0"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: CEREBRAS_API_KEY
+        sync: false
+      - key: RAG_ENABLED
+        value: "true"
+      - key: RAG_TOP_K
+        value: "4"
+      - key: RAG_MIN_SCORE
+        value: "0.45"
+      - key: EMBEDDING_MODEL
+        value: "gemini-embedding-001"
