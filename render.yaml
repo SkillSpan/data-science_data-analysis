@@ -13,10 +13,6 @@ services:
         value: https://back-end-zdip.onrender.com
       - key: DATA_SCIENCE_SERVICE_TOKEN
         sync: false
-      - key: BASELINE_INTERNAL_SECRET
-        sync: false
-      - key: BASELINE_MAPPING_TIMEOUT_SECONDS
-        value: "8.0"
       - key: GEMINI_API_KEY
         sync: false
       - key: GROQ_API_KEY
