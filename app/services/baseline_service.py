@@ -1,86 +1,99 @@
 from collections import defaultdict
 
-from app.schemas.baseline import BaselineRequest
-from app.schemas.baseline_mapping import BaselineMappingItem, BaselineMappingResponse
+from app.schemas.baseline import (
+    BaselineQuestion,
+    BaselineRequest,
+)
 
 
-ALGORITHM_VERSION = "baseline-v1.0"
+ALGORITHM_VERSION = "baseline-v2.0"
 
 
 class BaselineEvaluationInputError(ValueError):
-    """Raised when submitted responses do not match the configured assessment."""
+    """Raised when submitted responses cannot be scored safely."""
 
 
-class BaselineEvaluationConfigurationError(RuntimeError):
-    """Raised when the Backend-owned mapping cannot be scored safely."""
+class BaselineEvaluationConfigurationError(ValueError):
+    """Raised when the submitted assessment snapshot is inconsistent."""
 
 
-def _score_item(item: BaselineMappingItem, answer: str) -> float:
-    """Return a normalized deterministic item score in the 0..1 range."""
+def _score_question(
+    question: BaselineQuestion,
+    answer: str,
+) -> float:
+    """Return a normalized deterministic question score in the 0..1 range."""
 
-    if answer not in item.options:
+    if answer not in question.options:
         raise BaselineEvaluationInputError(
-            f"Invalid answer for baseline item {item.item_id}."
+            f"Invalid answer for baseline question_id {question.question_id}."
         )
 
-    if item.item_type == "single_choice":
-        return 1.0 if answer == item.correct_answer else 0.0
+    if question.question_type == "single_choice":
+        return 1.0 if answer == question.correct_answer else 0.0
 
-    scoring_rule = item.scoring_rule or {}
+    scoring_rule = question.scoring_rule or {}
     return scoring_rule[answer]
 
 
 def evaluate_baseline(
     request: BaselineRequest,
-    mapping: BaselineMappingResponse,
 ) -> dict[str, object]:
-    """Evaluate baseline responses against one validated Backend mapping."""
+    """Evaluate one exact dynamic assessment snapshot supplied by Laravel."""
 
-    if mapping.assessment_version != request.assessment_version:
-        raise BaselineEvaluationConfigurationError(
-            "Baseline mapping version does not match the requested assessment version."
-        )
+    questions_by_id = {
+        question.question_id: question
+        for question in request.questions
+    }
 
-    items_by_id = {item.item_id: item for item in mapping.items}
     configured_weight_by_skill: dict[int, float] = defaultdict(float)
+    answered_weight_by_skill: dict[int, float] = defaultdict(float)
+    weighted_score_by_skill: dict[int, float] = defaultdict(float)
     slug_by_skill: dict[int, str] = {}
 
-    for item in mapping.items:
-        configured_weight_by_skill[item.skill_id] += item.weight
+    for question in request.questions:
+        for mapping in question.skill_mappings:
+            effective_weight = question.weight * mapping.weight
+            configured_weight_by_skill[mapping.skill_id] += effective_weight
 
-        existing_slug = slug_by_skill.get(item.skill_id)
-        if existing_slug is not None and existing_slug != item.skill_slug:
-            raise BaselineEvaluationConfigurationError(
-                f"Baseline mapping contains inconsistent slugs for skill_id {item.skill_id}."
-            )
-        slug_by_skill[item.skill_id] = item.skill_slug
+            existing_slug = slug_by_skill.get(mapping.skill_id)
+            if (
+                existing_slug is not None
+                and existing_slug != mapping.skill_slug
+            ):
+                raise BaselineEvaluationConfigurationError(
+                    "Assessment snapshot contains inconsistent slugs for "
+                    f"skill_id {mapping.skill_id}."
+                )
+            slug_by_skill[mapping.skill_id] = mapping.skill_slug
 
-    weighted_score_by_skill: dict[int, float] = defaultdict(float)
-    answered_weight_by_skill: dict[int, float] = defaultdict(float)
     total_weighted_score = 0.0
     total_answered_weight = 0.0
 
     for submitted in request.responses:
-        item = items_by_id.get(submitted.item_id)
-        if item is None:
+        question = questions_by_id.get(submitted.question_id)
+        if question is None:
             raise BaselineEvaluationInputError(
-                f"Unknown baseline item_id: {submitted.item_id}."
+                f"Unknown baseline question_id: {submitted.question_id}."
             )
 
-        item_score = _score_item(item, submitted.answer)
+        question_score = _score_question(
+            question,
+            submitted.answer,
+        )
 
-        if item.weight == 0:
-            continue
+        for mapping in question.skill_mappings:
+            effective_weight = question.weight * mapping.weight
+            weighted_score = question_score * effective_weight
 
-        weighted_score = item_score * item.weight
-        weighted_score_by_skill[item.skill_id] += weighted_score
-        answered_weight_by_skill[item.skill_id] += item.weight
-        total_weighted_score += weighted_score
-        total_answered_weight += item.weight
+            weighted_score_by_skill[mapping.skill_id] += weighted_score
+            answered_weight_by_skill[mapping.skill_id] += effective_weight
+            total_weighted_score += weighted_score
+            total_answered_weight += effective_weight
 
     if total_answered_weight <= 0:
         raise BaselineEvaluationInputError(
-            "Baseline responses do not contain any positively weighted scorable items."
+            "Baseline responses do not contain any positively weighted "
+            "scorable questions."
         )
 
     skill_results: list[dict[str, object]] = []
@@ -89,12 +102,19 @@ def evaluate_baseline(
         answered_weight = answered_weight_by_skill[skill_id]
         configured_weight = configured_weight_by_skill[skill_id]
 
+        if answered_weight <= 0:
+            continue
+
         if configured_weight <= 0:
             raise BaselineEvaluationConfigurationError(
-                f"Baseline mapping has no positive configured weight for skill_id {skill_id}."
+                "Assessment snapshot has no positive configured weight for "
+                f"skill_id {skill_id}."
             )
 
-        normalized_score = weighted_score_by_skill[skill_id] / answered_weight
+        normalized_score = (
+            weighted_score_by_skill[skill_id]
+            / answered_weight
+        )
         confidence = answered_weight / configured_weight
 
         skill_results.append(
@@ -106,10 +126,21 @@ def evaluate_baseline(
             }
         )
 
-    overall_score = 100.0 * total_weighted_score / total_answered_weight
+    if not skill_results:
+        raise BaselineEvaluationInputError(
+            "Baseline responses did not measure any skills."
+        )
+
+    overall_score = (
+        100.0
+        * total_weighted_score
+        / total_answered_weight
+    )
 
     return {
         "algorithm_version": ALGORITHM_VERSION,
+        "assessment_version": request.assessment_version,
+        "career_role_id": request.career_role_id,
         "student_profile_id": request.student_profile_id,
         "overall_score": round(overall_score, 2),
         "skills": skill_results,
