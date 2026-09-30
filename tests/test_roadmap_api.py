@@ -31,7 +31,7 @@ def payload():
                 "required_level": 4.0,
                 "importance_weight": 0.6,
                 "is_critical": True,
-                "confidence": 0.9,
+                "confidence": 90.0,
                 "prerequisite_skill_ids": [],
             },
             {
@@ -41,7 +41,7 @@ def payload():
                 "required_level": 4.0,
                 "importance_weight": 0.4,
                 "is_critical": True,
-                "confidence": 0.8,
+                "confidence": 80.0,
                 "prerequisite_skill_ids": [1],
             },
         ],

@@ -67,6 +67,10 @@ def generate_roadmap(request: RoadmapRequest) -> dict:
     weekly_hours = request.learner.weekly_availability_hours
     if weekly_hours is None:
         limitations.append("weekly_availability_hours_unavailable")
+    elif weekly_hours == 0:
+        limitations.append("weekly_availability_hours_zero_no_calendar_duration")
+    elif weekly_hours == 0:
+        limitations.append("weekly_availability_hours_zero_no_calendar_duration")
 
     priorities = {
         skill_id: _priority_score(skill, skills_by_id)
@@ -102,7 +106,7 @@ def generate_roadmap(request: RoadmapRequest) -> dict:
         estimated_hours = _estimate_hours(action_type, gap)
         duration_weeks = (
             max(1, ceil(estimated_hours / weekly_hours))
-            if weekly_hours is not None
+            if weekly_hours is not None and weekly_hours > 0 and weekly_hours > 0
             else None
         )
 
@@ -127,8 +131,8 @@ def generate_roadmap(request: RoadmapRequest) -> dict:
     total_hours = round(sum(action.estimated_hours for _, action in actions), 2)
     total_weeks = (
         ceil(total_hours / weekly_hours)
-        if weekly_hours is not None and total_hours > 0
-        else (0 if weekly_hours is not None else None)
+        if weekly_hours is not None and weekly_hours > 0 and weekly_hours > 0 and total_hours > 0
+        else (0 if weekly_hours is not None and weekly_hours > 0 and weekly_hours > 0 else None)
     )
 
     next_best_action_id = _next_best_action(actions)
@@ -260,7 +264,7 @@ def _topological_unmet_order(
 
 
 def _select_action_type(skill: RoadmapSkillSnapshot, gap: float) -> str:
-    if skill.confidence < 0.60:
+    if skill.confidence < 60.0:
         return "assessment"
     if skill.current_level < 2.0 or gap >= 2.0:
         return "resource"

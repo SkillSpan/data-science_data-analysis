@@ -27,8 +27,8 @@
 - Invalid weights: covered.
 - Missing role data: covered.
 - Prerequisite cycle: covered.
-- Availability changes: pending Roadmap contract.
-- Role changes: pending Career Roadmap / Next Best Action contract.
+- Availability changes: covered by Roadmap v1 analytical duration behavior; Laravel recalculation E2E remains pending.
+- Role changes: Roadmap v1 accepts the updated role snapshot; Laravel recalculation orchestration E2E remains pending.
 - Configuration changes: versioning documented; runtime registry resolution pending.
 
 ## Confirmed Readiness Ownership
@@ -47,7 +47,7 @@ The external Laravel endpoint remains `POST /api/v1/readiness/calculate`. Its `a
 ## Pending Contracts
 
 ### Career Roadmap / Next Best Action
-No approved FastAPI runtime contract yet for phases, actions, effort, duration, availability changes, role changes, or Next Best Action.
+Career Roadmap v1 is implemented and runtime-tested in FastAPI through POST /api/v1/roadmap. It covers prerequisite-aware ordering, multiple prerequisites, cycle rejection, met-skill exclusion, approved phases/actions, effort, availability-based duration, neutral market-demand fallback, explanations, and Next Best Action. Laravel persistence/orchestration E2E remains pending final request/persistence contract alignment.
 
 ### Sprint 2 Profile Delta
 The deployed profile-completeness-v1 stays frozen. Sprint 2 requests student_number instead of student_university_number and adds country. Exact Backend snapshot, scoring, applicability, and compatibility remain pending.
@@ -57,7 +57,7 @@ Version identifiers exist and career-role-config-v1 is validated. Backend regist
 
 ## Validation Baseline
 
-135 passed, 1 known Starlette TestClient/httpx deprecation warning.
+187 passed, 1 known Starlette TestClient/httpx deprecation warning.
 
 ## Closure Boundary
 
@@ -76,6 +76,7 @@ All currently approved and implementable Sprint 2 Data Science work is covered b
 - Assessment Reliability: `assessment-reliability-v1` with `assessment-reliability-config-v1`.
 - Practical Experience: `practical-experience-v1` with `practical-experience-config-v1`.
 - Profile Completeness: `profile-completeness-v1` with `profile-completeness-config-v1`.
+- Career Roadmap: `roadmap-v1` with `roadmap-config-v1`.
 
 These identifiers describe the current analytical implementations or documented v1 configuration identities. They do not imply that every configuration identifier is already dynamically resolved from the Backend configuration registry at runtime.
 
@@ -93,7 +94,7 @@ These identifiers describe the current analytical implementations or documented 
 
 Pending items become implementation-ready only when the corresponding contract is confirmed:
 
-1. Career Roadmap / Next Best Action: approved roadmap inputs, outputs, phases, actions, ordering, effort, duration, availability behavior, and recalculation rules.
+1. Career Roadmap integration: align the Laravel Roadmap request mapping and estimated_duration_weeks persistence/resource contract, then complete authenticated end-to-end generation, persistence, versioning, recalculation, and Next Best Action verification.
 2. Sprint 2 Profile Delta: canonical `student_number` migration rule, country representation, scoring/applicability decision, compatibility policy, and exact Backend snapshot.
 3. Runtime Configuration Registry: active-version selection rules, lifecycle/status values, approval ownership, registry binding, and persistence of the exact configuration reference used.
 

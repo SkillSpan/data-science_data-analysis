@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from app.schemas.roadmap import RoadmapRequest
 from app.services.roadmap_service import RoadmapError, generate_roadmap
@@ -27,7 +28,7 @@ def build_request(*, weekly_hours=10.0, skills=None):
                     "required_level": 4.0,
                     "importance_weight": 0.5,
                     "is_critical": True,
-                    "confidence": 0.9,
+                    "confidence": 90.0,
                     "prerequisite_skill_ids": [],
                 },
                 {
@@ -37,7 +38,7 @@ def build_request(*, weekly_hours=10.0, skills=None):
                     "required_level": 4.0,
                     "importance_weight": 0.3,
                     "is_critical": True,
-                    "confidence": 0.8,
+                    "confidence": 80.0,
                     "prerequisite_skill_ids": [1],
                 },
                 {
@@ -47,7 +48,7 @@ def build_request(*, weekly_hours=10.0, skills=None):
                     "required_level": 4.0,
                     "importance_weight": 0.2,
                     "is_critical": False,
-                    "confidence": 0.8,
+                    "confidence": 80.0,
                     "prerequisite_skill_ids": [],
                 },
             ],
@@ -119,7 +120,7 @@ def test_low_confidence_prefers_assessment_action():
                 "required_level": 4.0,
                 "importance_weight": 1.0,
                 "is_critical": False,
-                "confidence": 0.4,
+                "confidence": 40.0,
                 "prerequisite_skill_ids": [],
             }
         ]
@@ -139,7 +140,7 @@ def test_small_high_confidence_gap_can_produce_real_project_action():
                 "required_level": 4.0,
                 "importance_weight": 1.0,
                 "is_critical": False,
-                "confidence": 0.9,
+                "confidence": 90.0,
                 "prerequisite_skill_ids": [],
                 "market_demand_factor": 1.0,
             }
@@ -160,7 +161,7 @@ def test_multiple_prerequisites_are_preserved_without_loss():
                 "required_level": 4.0,
                 "importance_weight": 0.3,
                 "is_critical": False,
-                "confidence": 0.9,
+                "confidence": 90.0,
                 "prerequisite_skill_ids": [],
             },
             {
@@ -170,7 +171,7 @@ def test_multiple_prerequisites_are_preserved_without_loss():
                 "required_level": 4.0,
                 "importance_weight": 0.3,
                 "is_critical": False,
-                "confidence": 0.9,
+                "confidence": 90.0,
                 "prerequisite_skill_ids": [],
             },
             {
@@ -180,7 +181,7 @@ def test_multiple_prerequisites_are_preserved_without_loss():
                 "required_level": 4.0,
                 "importance_weight": 0.4,
                 "is_critical": True,
-                "confidence": 0.9,
+                "confidence": 90.0,
                 "prerequisite_skill_ids": [1, 2],
             },
         ]
@@ -201,7 +202,7 @@ def test_cycle_is_rejected():
                 "required_level": 4.0,
                 "importance_weight": 0.5,
                 "is_critical": True,
-                "confidence": 0.9,
+                "confidence": 90.0,
                 "prerequisite_skill_ids": [2],
             },
             {
@@ -211,7 +212,7 @@ def test_cycle_is_rejected():
                 "required_level": 4.0,
                 "importance_weight": 0.5,
                 "is_critical": True,
-                "confidence": 0.9,
+                "confidence": 90.0,
                 "prerequisite_skill_ids": [1],
             },
         ]
@@ -227,3 +228,81 @@ def test_identical_input_is_deterministic():
     request = build_request()
 
     assert generate_roadmap(request) == generate_roadmap(request)
+
+
+def test_unknown_prerequisite_reference_is_rejected():
+    request = build_request(skills=[{
+        "skill_id": 1,
+        "skill_name": "Python",
+        "current_level": 2.0,
+        "required_level": 4.0,
+        "importance_weight": 1.0,
+        "is_critical": True,
+        "confidence": 90.0,
+        "prerequisite_skill_ids": [999],
+    }])
+
+    with pytest.raises(RoadmapError) as exc:
+        generate_roadmap(request)
+
+    assert exc.value.code == "UNKNOWN_PREREQUISITE_SKILL"
+
+
+def test_duplicate_skill_ids_are_rejected():
+    payload = build_request().model_dump()
+    payload["skills"].append(dict(payload["skills"][0]))
+
+    with pytest.raises(ValidationError) as exc:
+        RoadmapRequest.model_validate(payload)
+
+    assert "Duplicate skill ids are not allowed" in str(exc.value)
+
+def test_all_met_skills_return_empty_roadmap_without_next_best_action():
+    request = build_request(skills=[{
+        "skill_id": 1,
+        "skill_name": "Python",
+        "current_level": 4.0,
+        "required_level": 4.0,
+        "importance_weight": 1.0,
+        "is_critical": True,
+        "confidence": 90.0,
+        "prerequisite_skill_ids": [],
+    }])
+
+    result = generate_roadmap(request)
+
+    assert all_actions(result) == []
+    assert result["next_best_action_id"] is None
+    assert result["estimated_total_hours"] == 0
+
+
+def test_roadmap_uses_approved_phase_and_action_vocabularies():
+    result = generate_roadmap(build_request())
+
+    assert [phase["phase"] for phase in result["phases"]] == [
+        "foundations",
+        "core_skills",
+        "applied_practice",
+        "career_readiness",
+    ]
+
+    allowed_action_types = {
+        "assessment",
+        "resource",
+        "practice",
+        "simulated_project",
+        "real_project",
+    }
+    assert {action["action_type"] for action in all_actions(result)} <= allowed_action_types
+
+
+def test_zero_weekly_availability_preserves_effort_without_calendar_duration():
+    result = generate_roadmap(build_request(weekly_hours=0))
+
+    assert result["estimated_total_hours"] > 0
+    assert result["estimated_duration_weeks"] is None
+    assert "weekly_availability_hours_zero_no_calendar_duration" in result["limitations"]
+    assert all(
+        action["estimated_duration_weeks"] is None
+        for action in all_actions(result)
+    )

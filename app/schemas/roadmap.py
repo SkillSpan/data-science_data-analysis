@@ -25,7 +25,7 @@ class RoadmapLearnerSnapshot(BaseModel):
     student_profile_id: int = Field(..., gt=0)
     user_id: int = Field(..., gt=0)
     availability: str | None = Field(default=None, max_length=100)
-    weekly_availability_hours: float | None = Field(default=None, gt=0, le=168)
+    weekly_availability_hours: float | None = Field(default=None, ge=0, le=168)
 
 
 class RoadmapRoleSnapshot(BaseModel):
@@ -45,7 +45,7 @@ class RoadmapSkillSnapshot(BaseModel):
     required_level: float = Field(..., ge=0, le=5)
     importance_weight: float = Field(..., gt=0, le=1)
     is_critical: bool
-    confidence: float = Field(..., ge=0, le=1)
+    confidence: float = Field(..., ge=0, le=100)
     prerequisite_skill_ids: list[int] = Field(default_factory=list)
     market_demand_factor: float | None = Field(default=None, gt=0, le=2)
 
