@@ -3,6 +3,7 @@ from app.schemas.baseline import BaselineRequest
 from app.schemas.career_role_configuration import CareerRoleConfigurationRequest
 from app.schemas.practical_experience import PracticalExperienceRequest
 from app.schemas.profile_completeness import ProfileCompletenessRequest
+from app.schemas.roadmap import RoadmapRequest
 from app.schemas.skill_confidence import SkillConfidenceRequest
 from app.schemas.skill_gap import SkillGapRequest
 from app.schemas.skill_match import SkillMatchRequest
@@ -28,6 +29,7 @@ ANALYTICAL_REQUEST_MODELS = (
     CareerRoleConfigurationRequest,
     PracticalExperienceRequest,
     ProfileCompletenessRequest,
+    RoadmapRequest,
     SkillConfidenceRequest,
     SkillGapRequest,
     SkillMatchRequest,
