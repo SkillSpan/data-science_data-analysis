@@ -86,36 +86,105 @@ def test_assistant_returns_503_when_all_providers_fail(client, monkeypatch):
     assert response.json()["detail"]["code"] == "assistant_provider_unavailable"
 
 
-def test_assistant_accepts_laravel_context_and_bypasses_retrieval(client, monkeypatch):
-    def should_not_load_retriever():
-        raise AssertionError("RAG must not run when Laravel supplies approved context")
-
-    monkeypatch.setattr(assistant_route, "_retriever_for_request", should_not_load_retriever)
+def test_assistant_combines_laravel_context_with_rag(client, monkeypatch):
+    retriever = StubRetriever([
+        _hit('01-overview.md', 'SkillSpan connects learner readiness, roadmaps, and project opportunities.'),
+    ])
+    monkeypatch.setattr(assistant_route, '_retriever_for_request', lambda: retriever)
 
     async def fake_reply(system_prompt, user_prompt):
-        assert "Approved assistant intent: explain_readiness" in user_prompt
-        assert "SkillSpan learner context (authoritative stored values)" in user_prompt
+        assert 'Approved assistant intent: explain_readiness' in user_prompt
+        assert 'AUTHORITATIVE LARAVEL LEARNER CONTEXT:' in user_prompt
+        assert 'SkillSpan learner context (authoritative stored values)' in user_prompt
         assert '"readiness_score": 67' in user_prompt
-        return "Your readiness is 67 because of the supplied components.", "groq"
+        assert 'APPROVED SKILLSPAN DOCUMENTATION:' in user_prompt
+        assert 'SkillSpan connects learner readiness' in user_prompt
+        return 'Your readiness is 67, and SkillSpan uses it as part of your career journey.', 'groq'
 
-    monkeypatch.setattr(assistant_route, "generate_reply", fake_reply)
+    monkeypatch.setattr(assistant_route, 'generate_reply', fake_reply)
+
     response = client.post(
-        "/api/v1/assistant/chat",
+        '/api/v1/assistant/chat',
         json={
-            "user_id": "42",
-            "message": "Why is my readiness 67?",
-            "intent": "explain_readiness",
-            "context": 'SkillSpan learner context (authoritative stored values):\\n{"readiness_score": 67}',
+            'user_id': '42',
+            'message': 'Why is my readiness 67?',
+            'intent': 'explain_readiness',
+            'context': 'SkillSpan learner context (authoritative stored values):\\n{"readiness_score": 67}',
         },
-        headers={"X-Request-ID": "req-laravel-assistant-1"},
+        headers={'X-Request-ID': 'req-laravel-assistant-1'},
     )
+
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "answered"
-    assert body["grounded"] is True
-    assert body["sources"] == ["laravel_context"]
-    assert body["provider_used"] == "groq"
-    assert body["request_id"] == "req-laravel-assistant-1"
+    assert body['status'] == 'answered'
+    assert body['grounded'] is True
+    assert body['sources'] == ['laravel_context', '01-overview.md']
+    assert body['provider_used'] == 'groq'
+    assert body['request_id'] == 'req-laravel-assistant-1'
+
+
+def test_assistant_uses_laravel_context_when_rag_is_unavailable(client, monkeypatch):
+    monkeypatch.setattr(
+        assistant_route,
+        '_retriever_for_request',
+        lambda: StubRetriever(available=False),
+    )
+
+    async def fake_reply(system_prompt, user_prompt):
+        assert 'AUTHORITATIVE LARAVEL LEARNER CONTEXT:' in user_prompt
+        assert '"readiness_score": 67' in user_prompt
+        assert 'APPROVED SKILLSPAN DOCUMENTATION:' not in user_prompt
+        return 'Your readiness is 67 based on your stored learner data.', 'groq'
+
+    monkeypatch.setattr(assistant_route, 'generate_reply', fake_reply)
+
+    response = client.post(
+        '/api/v1/assistant/chat',
+        json={
+            'user_id': '42',
+            'message': 'Why is my readiness 67?',
+            'intent': 'explain_readiness',
+            'context': 'SkillSpan learner context (authoritative stored values):\\n{"readiness_score": 67}',
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body['status'] == 'answered'
+    assert body['grounded'] is True
+    assert body['sources'] == ['laravel_context']
+
+
+def test_assistant_general_skillspan_question_uses_rag_with_laravel_context(client, monkeypatch):
+    retriever = StubRetriever([
+        _hit('01-overview.md', 'SkillSpan connects education, career readiness, roadmaps, and practical project opportunities.'),
+    ])
+    monkeypatch.setattr(assistant_route, '_retriever_for_request', lambda: retriever)
+
+    async def fake_reply(system_prompt, user_prompt):
+        assert 'What is SkillSpan?' in user_prompt
+        assert 'AUTHORITATIVE LARAVEL LEARNER CONTEXT:' in user_prompt
+        assert 'APPROVED SKILLSPAN DOCUMENTATION:' in user_prompt
+        assert 'SkillSpan connects education' in user_prompt
+        return 'SkillSpan is a career-readiness platform.', 'groq'
+
+    monkeypatch.setattr(assistant_route, 'generate_reply', fake_reply)
+
+    response = client.post(
+        '/api/v1/assistant/chat',
+        json={
+            'user_id': '42',
+            'message': 'What is SkillSpan?',
+            'context': 'SkillSpan learner context (authoritative stored values):\\n{"readiness_score": 67}',
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body['status'] == 'answered'
+    assert body['grounded'] is True
+    assert body['sources'] == ['laravel_context', '01-overview.md']
+    assert body['provider_used'] == 'groq'
 
 
 def test_assistant_rejects_unknown_intent(client):
