@@ -1051,7 +1051,9 @@ Data Framework status: `Ready for cross-team review and implementation alignment
 
 Backend ↔ FastAPI isolated Project Matching E2E status: `PASS` — successful eligible/scored flow, persistence/readback, and critical-skill rejection before FastAPI invocation were verified by the Backend team.
 
-Deployed Render Project Matching verification status: `Pending` — the deployed version and `DATA_SCIENCE_PROJECT_MATCHING_ENABLED` setting have not yet been confirmed.
+Deployed Render Project Matching verification status: `PASS` — Backend commit `9eb2b07` was verified as deployed, migration `2026_10_08_000004` is applied, `DATA_SCIENCE_PROJECT_MATCHING_ENABLED=true`, and an authenticated production smoke test returned HTTP 200 with `eligibility_state=eligible`, `matching_state=scored`, score `50`, and persisted snapshot/recommendation records.
+
+Operational reliability note: the first production matching attempt returned `503 INTELLIGENCE_UNAVAILABLE` during a FastAPI Render cold start, while an immediate retry succeeded. Retry/backoff or equivalent cold-start hardening should be addressed before Pilot launch.
 
 Pilot Recommendation Validation status: `Pending approved Pilot Project fixtures and execution`.
 
