@@ -48,9 +48,11 @@ Only approved Career Roles are eligible for Project Matching.
 | Frontend Developer | React | Core | 3.0 | 0.90 | JavaScript |
 | Frontend Developer | CSS / Tailwind | Supporting | 2.5 | 0.60 | — |
 | Frontend Developer | TypeScript | Supporting | 2.0 | 0.50 | JavaScript |
-| Backend Developer | Node.js | Core | 3.0 | 0.90 | JavaScript |
-| Backend Developer | SQL | Core | 3.0 | 0.80 | — |
-| Backend Developer | REST APIs | Supporting | 3.0 | 0.70 | — |
+| Backend Developer | Programming Fundamentals | TBD | TBD | TBD | — |
+| Backend Developer | SQL & Databases | TBD | TBD | TBD | — |
+| Backend Developer | REST APIs | TBD | TBD | TBD | — |
+| Backend Developer | Authentication & Authorization | TBD | TBD | TBD | — |
+| Backend Developer | Backend Architecture | TBD | TBD | TBD | — |
 | Data Analyst | Python | Core | 3.0 | 0.90 | — |
 | Data Analyst | Pandas | Core | 3.0 | 0.80 | Python |
 | Data Analyst | SQL | Supporting | 2.5 | 0.70 | — |
@@ -101,22 +103,21 @@ For Project creation, `minimum_required_level` must use the same canonical scale
 
 subject to the Eligibility rules defined later in this framework.
 
-## 7. Current Mapping Issue Requiring Approval
+## 7. Backend Career-Role Mapping Alignment
 
-The current Backend Developer baseline maps:
+Backend review of the current `feature/authentication` seed baseline confirmed that `Backend Developer` contains:
 
-`Node.js → prerequisite JavaScript`
+- Programming Fundamentals
+- SQL & Databases
+- REST APIs
+- Authentication & Authorization
+- Backend Architecture
 
-while JavaScript is not currently listed as a Backend Developer role skill.
+`Node.js` is not currently mapped to `Backend Developer`; it belongs to the separate `Node.js Developer` role. No seeded `Node.js → JavaScript` prerequisite exists in the reviewed backend source.
 
-The career-role configuration contract requires every prerequisite to exist inside the same career-role configuration.
+Therefore this framework must not assume either `Node.js` membership in the Backend Developer role or a Node.js-to-JavaScript prerequisite.
 
-Recommended MVP resolution:
-
-- add `JavaScript` to Backend Developer as a **Supporting Skill** with target level `2.5`; or
-- explicitly remove/change the Node.js prerequisite if Product/Domain does not want JavaScript in the Backend Developer role profile.
-
-No runtime or seed change should be made until this decision is approved.
+The Backend Developer Core/Supporting classifications, target levels, and importance weights remain `TBD` until the approved Product/Backend mapping is confirmed. Project skills must remain mapped to the selected Career Role before Project Matching validation.
 
 ## 8. Skill Catalog Governance
 
@@ -294,6 +295,12 @@ Initial analytical configuration identifier:
 
 `project-difficulty-config-v1`
 
+### 10.11 Runtime Difficulty Contract Alignment
+
+The analytical framework may derive the human-readable bands `Beginner`, `Intermediate`, and `Advanced`, but the current Laravel and FastAPI Project Matching contract carries `difficulty` as a numeric value on the canonical `0..5` scale.
+
+Therefore, the MVP implementation must not send categorical difficulty strings through the existing Project Matching payload. A deterministic mapping between the analytical difficulty band/index and the numeric `0..5` runtime value must be approved before automated difficulty classification is written back to Project data. Changing the payload to a categorical value requires a versioned Backend/FastAPI contract change.
+
 Any material change to factor definitions, weights, thresholds, guardrails, or band boundaries requires a new configuration version so historical classifications remain reproducible.
 ## 11. Project Eligibility Rules
 
@@ -335,7 +342,7 @@ The MVP eligibility stage evaluates the following hard filters when the relevant
 2. Application window.
 3. Capacity / requested role availability.
 4. Authorization and organization/access restrictions.
-5. Mandatory schedule, work-mode, location, or language constraints.
+5. Mandatory Project constraints enforced by Laravel. In the current Backend runtime, `work_mode` and `schedule` are hard constraints when configured; `location` and `language` are not currently hard eligibility constraints.
 6. Duplicate active application.
 7. Conflicting active Project assignment where prohibited.
 8. Project Critical Entry Skill requirements.
@@ -432,17 +439,29 @@ Every blocking constraint should identify:
 - blocking status;
 - human-readable reason.
 
-### 11.9 Eligibility States
+### 11.9 Eligibility and Validation State Contract
 
-Initial MVP states:
+The current integration uses separate input-validation and recommendation-output states.
 
-| State | Meaning |
-|---|---|
-| `eligible` | All configured hard filters passed. Project may enter Matching. |
-| `not_eligible` | One or more hard filters failed. Project must not enter qualified Ranking. |
-| `not_validated` | Required eligibility data is missing or validation could not be completed. |
+Laravel/FastAPI validation snapshot input:
 
-`not_validated` must not be treated as `eligible`.
+| Field | Allowed State | Meaning |
+|---|---|---|
+| `eligibility_state` | `eligible` | Authoritative eligibility checks passed. |
+| `eligibility_state` | `not_eligible` | One or more authoritative hard eligibility checks failed. |
+| `validation_state` | `validated` | Eligibility validation completed. |
+| `validation_state` | `not_validated` | Required validation could not be completed. |
+
+FastAPI recommendation output:
+
+| Field | Allowed State | Meaning |
+|---|---|---|
+| `eligibility_state` | `eligible` | Project is eligible for scored matching. |
+| `eligibility_state` | `ineligible` | Input validation or matching eligibility prevents a qualified recommendation. |
+| `matching_state` | `scored` | Recommendation was scored. |
+| `matching_state` | `blocked` | Recommendation is blocked and must not enter qualified ranking. |
+
+`not_validated` is a `validation_state`, not a recommendation `eligibility_state`. The framework must preserve this distinction in logs, persistence, tests, and documentation.
 
 ### 11.10 Missing Data Policy
 
@@ -450,9 +469,9 @@ Missing data must not be silently converted into a pass.
 
 Rules:
 
-1. Missing learner level for a Critical Entry Skill -> `not_eligible`.
+1. Missing learner level for a Critical Entry Skill -> validation input `eligibility_state = not_eligible`; if evaluated by FastAPI directly, the recommendation output is `eligibility_state = ineligible` and `matching_state = blocked`.
 2. Missing Project minimum for a Required Skill -> Project configuration invalid; do not publish/match.
-3. Missing mandatory access/lifecycle data -> `not_validated` or Backend rejection.
+3. Missing mandatory access/lifecycle data -> `validation_state = not_validated` or Backend rejection.
 4. Missing non-critical learner skill -> learner may remain eligible; preserve the gap for Matching.
 5. Missing optional Matching-only preference data must not become an eligibility failure.
 
@@ -649,7 +668,11 @@ Current v1 evaluates available comparisons between:
 
 Each available comparison contributes `100` for a normalized exact match or `0` for a mismatch, and available comparisons are averaged.
 
-If no comparison can be made, v1 uses the configured neutral fallback.
+In the current integrated Backend flow, `work_mode` and `schedule` are also enforced as hard eligibility constraints when configured. A mismatch rejected by Laravel does not proceed to qualified FastAPI scoring. `location` and `language` are not currently enforced as hard eligibility constraints.
+
+The current Backend comparison for `schedule` is strict text equality, so semantically equivalent values with different casing or formatting can fail eligibility. `weekly_availability_hours` is not currently part of the Project Matching payload. These are alignment items for a later contract/configuration revision rather than behavior to silently change in matching v1.
+
+If no comparison can be made for an optional scoring factor, v1 uses the configured neutral fallback.
 
 ### 12.6 Optional-Factor Neutral Fallback
 
@@ -748,9 +771,11 @@ A blocked Project is treated as score `0` for matching output and excluded from 
 
 ### 13.6 Current v1 Runtime Alignment
 
-The current FastAPI v1 already provides deterministic multi-project sorting with scored Projects first, score descending, and `project_id` ascending as the tie-breaker.
+The current integrated API flow matches one Project per request. Laravel exposes Project-level matching rather than a Top-N recommendation endpoint, and its recommendation listing uses pagination rather than ranking orchestration.
 
-MVP integration still requires explicit Top-N orchestration across multiple eligible Projects before this capability is considered complete at product level.
+FastAPI contains deterministic multi-project sorting logic with scored Projects first, score descending, and `project_id` ascending as the tie-breaker, but there is no current end-to-end HTTP flow that evaluates a candidate set and returns the best N Projects.
+
+Therefore Top-N remains an integration/design item. Pilot validation can still evaluate Projects independently and apply deterministic ranking to the resulting eligible scored recommendations without claiming that a Product Top-N endpoint is already implemented.
 
 ### 13.7 Ranking Validation Cases
 
@@ -796,9 +821,11 @@ Validation intent:
 Target Career Role: `Backend Developer`
 
 Skills:
-- Node.js: `3.0`
-- SQL: `3.0`
+- Programming Fundamentals: `3.0`
+- SQL & Databases: `3.0`
 - REST APIs: `3.0`
+- Authentication & Authorization: `2.5`
+- Backend Architecture: `2.5`
 
 Interests: `backend`, `APIs`
 Availability: `full_time`
@@ -833,9 +860,11 @@ Validation intent:
 Target Career Role: `Backend Developer`
 
 Skills:
-- Node.js: `3.0`
-- SQL: `2.0`
+- Programming Fundamentals: `3.0`
+- SQL & Databases: `2.0`
 - REST APIs: `2.5`
+- Authentication & Authorization: `2.0`
+- Backend Architecture: `2.0`
 
 Interests: `backend`
 Availability: `part_time`
@@ -951,11 +980,11 @@ Expected: not eligible regardless of other strong factors.
 `VAL-08` - SP-05 matches several interests but the Project has weak Career Relevance.
 Expected: Interest Match may improve the score but must not override the configured factor weights.
 
-`VAL-09` - SP-06 has strong Frontend skills but an optional schedule or work-mode mismatch.
-Expected: learner remains eligible and Availability Fit is reduced.
+`VAL-09` - SP-06 has strong Frontend skills but a non-hard availability preference mismatch, such as a future configured location/language preference.
+Expected: learner remains eligible; the preference may affect Matching only when that factor is implemented and configured.
 
-`VAL-10` - SP-06 violates a mandatory schedule or work-mode Project constraint.
-Expected: Laravel Eligibility rejects the Project before qualified Ranking.
+`VAL-10` - SP-06 violates a configured `schedule` or `work_mode` constraint in the current Backend flow.
+Expected: Laravel Eligibility rejects the Project before qualified Matching or Ranking.
 
 `VAL-11` - Two eligible Projects have different Project Match scores.
 Expected: higher score ranks first.
@@ -1008,17 +1037,21 @@ This framework now defines the requested MVP analytical artifacts:
 ### 16.2 Decisions Requiring Approval
 
 The following decisions remain subject to Product, Backend, or Domain approval:
-- resolve the Backend Developer Node.js prerequisite and JavaScript mapping issue;
+- confirm the final Backend Developer Core/Supporting classifications, target levels, and importance weights against the approved backend catalog;
 - confirm Career Role Core semantics versus Project Critical Entry semantics;
 - approve Difficulty factor weights, thresholds, bands, and guardrails;
 - approve Growth Potential as part of Learning Value for matching v1;
-- confirm which Availability conditions are preferences versus hard constraints;
-- define the Product Top-N recommendation count;
+- decide whether the current hard `schedule` constraint should remain for the Pilot or move to preference scoring after schedule values are standardized; `work_mode` is currently hard while `location` and `language` are not;
+- define Top-N ownership/orchestration and the Product recommendation count; the current integrated API matches one Project per request;
 - approve the Pilot Project Catalog used for final validation.
 
 ### 16.3 Pilot Readiness Status
 
 Data Framework status: `Ready for cross-team review and implementation alignment`.
+
+Backend ↔ FastAPI isolated Project Matching E2E status: `PASS` — successful eligible/scored flow, persistence/readback, and critical-skill rejection before FastAPI invocation were verified by the Backend team.
+
+Deployed Render Project Matching verification status: `Pending` — the deployed version and `DATA_SCIENCE_PROJECT_MATCHING_ENABLED` setting have not yet been confirmed.
 
 Pilot Recommendation Validation status: `Pending approved Pilot Project fixtures and execution`.
 
