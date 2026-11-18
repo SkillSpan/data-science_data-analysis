@@ -46,6 +46,7 @@ class RoadmapSkillSnapshot(BaseModel):
     importance_weight: float = Field(..., gt=0, le=1)
     is_critical: bool
     confidence: float = Field(..., ge=0, le=100)
+    has_recent_verified_assessment: bool = False
     prerequisite_skill_ids: list[int] = Field(default_factory=list)
     market_demand_factor: float | None = Field(default=None, gt=0, le=2)
 
@@ -66,6 +67,7 @@ class RoadmapRequest(BaseModel):
     learner: RoadmapLearnerSnapshot
     role: RoadmapRoleSnapshot
     skills: list[RoadmapSkillSnapshot] = Field(..., min_length=1)
+    action_selection_policy: Literal["legacy-v1", "assessment-aware-v2"] = "legacy-v1"
 
     @model_validator(mode="after")
     def validate_unique_skills(self) -> "RoadmapRequest":
