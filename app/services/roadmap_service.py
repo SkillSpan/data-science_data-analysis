@@ -88,7 +88,8 @@ def generate_roadmap(request: RoadmapRequest) -> dict:
     for index, skill_id in enumerate(ordered_skill_ids, start=1):
         skill = unmet_skills[skill_id]
         gap = _gap(skill)
-        action_type = _select_action_type(skill, gap)
+        assessment_aware = request.action_selection_policy == "assessment-aware-v2"
+        action_type = _select_action_type(skill, gap, assessment_aware)
         base_phase = _select_phase(skill, action_type, unmet_skills)
         phase = _respect_prerequisite_phase_order(
             skill=skill,
@@ -123,7 +124,7 @@ def generate_roadmap(request: RoadmapRequest) -> dict:
             estimated_hours=estimated_hours,
             estimated_duration_weeks=duration_weeks,
             completion_criteria=_completion_criteria(action_type, skill),
-            explanation=_explanation(skill, gap, priorities[skill_id], blocking),
+            explanation=_explanation(skill, gap, priorities[skill_id], blocking, assessment_aware),
         )
         actions.append((phase, action))
 
@@ -141,8 +142,8 @@ def generate_roadmap(request: RoadmapRequest) -> dict:
         student_profile_id=request.learner.student_profile_id,
         career_role_id=request.role.id,
         career_role_version=request.role.version,
-        algorithm_version=ALGORITHM_VERSION,
-        configuration_version=CONFIGURATION_VERSION,
+        algorithm_version="roadmap-v2" if request.action_selection_policy == "assessment-aware-v2" else ALGORITHM_VERSION,
+        configuration_version="roadmap-config-v2" if request.action_selection_policy == "assessment-aware-v2" else CONFIGURATION_VERSION,
         estimated_total_hours=total_hours,
         estimated_duration_weeks=total_weeks,
         phases=phases,
@@ -263,8 +264,8 @@ def _topological_unmet_order(
     return ordered
 
 
-def _select_action_type(skill: RoadmapSkillSnapshot, gap: float) -> str:
-    if skill.confidence < 60.0:
+def _select_action_type(skill: RoadmapSkillSnapshot, gap: float, assessment_aware: bool = False) -> str:
+    if skill.confidence < 60.0 and not (assessment_aware and skill.has_recent_verified_assessment):
         return "assessment"
     if skill.current_level < 2.0 or gap >= 2.0:
         return "resource"
@@ -369,6 +370,7 @@ def _explanation(
     gap: float,
     priority_score: float,
     blocking: list[int],
+    assessment_aware: bool = False,
 ) -> list[str]:
     reasons = [
         (
@@ -378,6 +380,12 @@ def _explanation(
         f"Calculated roadmap priority is {priority_score:.6f}.",
     ]
 
+    if assessment_aware and skill.has_recent_verified_assessment and skill.confidence < 60:
+        reasons.append(
+            "A recent verified assessment already measures this skill. "
+            "Low evidence confidence alone does not require another assessment; "
+            "this action targets the measured skill gap."
+        )
     if skill.is_critical:
         reasons.append("The target role marks this skill as critical.")
     if skill.market_demand_factor is None:
